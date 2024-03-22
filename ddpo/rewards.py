@@ -15,47 +15,44 @@ def aesthetic_score():
     return _fn
 
 
-def under30_old():
-    from transformers import ViTImageProcessor, ViTForImageClassification
-
-    model = ViTForImageClassification.from_pretrained("nateraw/vit-age-classifier")
-    transforms = ViTImageProcessor.from_pretrained("nateraw/vit-age-classifier")      
-    model.to("cuda")
-
-    # Obtain id2label and label2id mapping
-    # model.config.id2label, model.config.label2id
-
-    def _fn(images):
-        inputs = transforms(
-            decode_tensor_to_np_img(images,
-                                    melt_batch=False,), 
-            return_tensors="pt").pixel_values.cuda()
-        outputs = model(inputs).logits    
-        probs = outputs.softmax(dim=1)
-        rewards = (probs.argmax(dim=1) <= 3).float()
-        return rewards
-
-    return _fn
-
-
 def over50_old():
     from transformers import ViTImageProcessor, ViTForImageClassification
     model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
     transforms = ViTImageProcessor.from_pretrained('nateraw/vit-age-classifier')
     model.to("cuda")
-
-    # obtain id2label and label2id mapping
-    # model.config.id2label, model.config.label2id
+    model.eval()
 
     def _fn(images):
         inputs = transforms(
             decode_tensor_to_np_img(images,
-                                    melt_batch=False,), 
+                                    melt_batch=False,),
             return_tensors="pt").pixel_values.cuda()
-        outputs = model(inputs).logits    
+        with torch.no_grad():
+          outputs = model(inputs).logits
         probs = outputs.softmax(dim=1)
-        rewards = (probs.argmax(dim=1) >= 6).float()
+        rewards = probs[:, 6:].sum(dim=1)
         return rewards
 
     return _fn
-    
+
+
+
+def under30_old():
+    from transformers import ViTImageProcessor, ViTForImageClassification
+    model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
+    transforms = ViTImageProcessor.from_pretrained('nateraw/vit-age-classifier')
+    model.to("cuda")
+    model.eval()
+
+    def _fn(images):
+        inputs = transforms(
+            decode_tensor_to_np_img(images,
+                                    melt_batch=False,),
+            return_tensors="pt").pixel_values.cuda()
+        with torch.no_grad():
+          outputs = model(inputs).logits
+        probs = outputs.softmax(dim=1)
+        rewards = probs[:, :4].sum(dim=1)
+        return rewards
+
+    return _fn
