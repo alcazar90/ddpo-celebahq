@@ -18,6 +18,7 @@ dependencies = [
   'numpy==1.25.2',
   'torch==2.2.1',
   'torchvision==0.17.1',
+  'transformers==4.38.2',
   'diffusers==0.27.2',
   'accelerate==0.28.0',
   'clip@git+https://github.com/openai/CLIP.git',
