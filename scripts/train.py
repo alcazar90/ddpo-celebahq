@@ -7,7 +7,8 @@ import torch
 from diffusers import DDIMScheduler, DDPMPipeline
 
 from PIL import Image
-from fastprogress import progress_bar, master_bar
+from tqdm import tqdm
+# from fastprogress import progress_bar, master_bar
 
 
 from ddpo.utils import flush, decode_tensor_to_np_img
@@ -20,6 +21,13 @@ from ddpo.ddpo import (compute_loss,
 
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+
+# Set up progress bars---------------------------------------------------------
+def progress_bar(iterable, **kwargs):
+    return tqdm(iterable, **kwargs)
+
+def master_bar(iterable, **kwargs):
+    return tqdm(iterable, **kwargs)
 
 
 # Define hyparparameters--------------------------------------------------------
