@@ -1,3 +1,4 @@
+import torch
 from ddpo.utils import decode_tensor_to_np_img
 
 # Following closure style for rewards functions using in https://github.com/kvablack/ddpo-pytorch/blob/main/ddpo_pytorch/rewards.py
