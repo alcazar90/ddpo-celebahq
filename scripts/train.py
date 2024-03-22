@@ -67,6 +67,7 @@ num_batches = num_samples_per_epoch // batch_size
 
 # Create config for logging-----------------------------------------------------
 config = dict(
+    task=task,
     num_samples_per_epoch=num_samples_per_epoch,
     num_epochs=num_epochs,
     num_inner_epochs=num_inner_epochs,
