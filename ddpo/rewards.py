@@ -39,9 +39,9 @@ def under30_old():
 
 
 def over50_old():
-    from transformers import ViTFeatureExtractor, ViTForImageClassification
+    from transformers import ViTImageProcessor, ViTForImageClassification
     model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
-    transforms = ViTFeatureExtractor.from_pretrained('nateraw/vit-age-classifier')
+    transforms = ViTImageProcessor.from_pretrained('nateraw/vit-age-classifier')
     model.to("cuda")
 
     # obtain id2label and label2id mapping
