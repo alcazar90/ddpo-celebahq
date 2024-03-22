@@ -29,8 +29,8 @@ def under30_old():
         inputs = transforms(
             decode_tensor_to_np_img(images,
                                     melt_batch=False,), 
-            return_tensors="pt")
-        outputs = model(**inputs).logits    
+            return_tensors="pt").pixel_values.cuda()
+        outputs = model(inputs).logits    
         probs = outputs.softmax(dim=1)
         rewards = (probs.argmax(dim=1) <= 3).float()
         return rewards
@@ -51,8 +51,8 @@ def over50_old():
         inputs = transforms(
             decode_tensor_to_np_img(images,
                                     melt_batch=False,), 
-            return_tensors="pt")
-        outputs = model(**inputs).logits    
+            return_tensors="pt").pixel_values.cuda()
+        outputs = model(inputs).logits    
         probs = outputs.softmax(dim=1)
         rewards = (probs.argmax(dim=1) >= 6).float()
         return rewards
