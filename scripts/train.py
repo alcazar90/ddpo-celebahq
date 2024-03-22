@@ -46,7 +46,7 @@ parser.add_argument('--clip_advantages', type=float, default=2.5)
 parser.add_argument('--clip_ratio', type=float, default=1e-4)
 parser.add_argument('--ddpm_ckpt', type=str, default="google/ddpm-celebahq-256")
 parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
-parser.add_argument("--output_dir", type=str, default="./output", help="output directory to save model ckpt")
+parser.add_argument("--output_dir", type=str, default="..", help="output directory to save model ckpt")
 
 args = parser.parse_args()
 
