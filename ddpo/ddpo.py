@@ -27,12 +27,11 @@ def calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t, eps=EPS):
 
 @torch.no_grad()
 def sample_from_ddpm_celebahq(num_samples,
-                                    scheduler,
-                                    image_pipe,
-                                    reward_model,
-                                    device,
-                                    eta=1,
-                                    random_seed=None):
+                              scheduler,
+                              image_pipe,
+                              device,
+                              eta=1,
+                              random_seed=None):
   """
   This function samples a batch of images from the google/ddpm-celebahq-256 model
   using a specified scheduler, image pipeline, reward model, and device. It generates
@@ -47,15 +46,12 @@ def sample_from_ddpm_celebahq(num_samples,
     num_samples (int): The number of samples to generate.
     scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
     image_pipe (ImagePipeline): The image pipeline object used for processing images.
-    reward_model (AestheticRewardModel): The reward model used to compute the aesthetic score of the samples.
     device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
     random_seed (int, optional): The random seed for reproducibility. Defaults to None.
 
   Returns:
     tensor: A tensor containing the trajectories of the entire batach (T, B, C, H, w).
     tensor: A tensor containing the log probabilities of the trajectories (T, B).
-    tensor: A tensor containing the final reward (from image generated) computed
-     using the reward model (B, 1)
   """
   if random_seed:
     torch.manual_seed(random_seed)
@@ -76,7 +72,7 @@ def sample_from_ddpm_celebahq(num_samples,
       noise_pred = image_pipe.unet(model_input, t).sample
 
       # [S] using the prediction noise we can predict the denoised image representation
-      # compute the "previous" noisy sample mean 
+      # compute the "previous" noisy sample mean
       scheduler_output = scheduler.step(noise_pred, t, xt, eta, variance_noise=0)
       prev_sample_mean = scheduler_output.prev_sample # this is the mean and not full sample since variance is 0
 
@@ -95,9 +91,6 @@ def sample_from_ddpm_celebahq(num_samples,
       trajectory.append(prev_sample)
       xt = prev_sample
 
-  # compute final reward and save it; save trajectory
-  final_reward = reward_model(xt)
-
   # now we will release the VRAM memory deleting the variable bounded to the VRAM
   # and use flush()
   del xt
@@ -112,8 +105,7 @@ def sample_from_ddpm_celebahq(num_samples,
   flush()
 
   # (T+1, B, C, H, W), (T, B), (B, 1)
-  return torch.stack(trajectory), torch.stack(log_probs), final_reward
-
+  return torch.stack(trajectory), torch.stack(log_probs)
 
 
 def compute_loss(x_t,

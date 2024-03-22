@@ -138,14 +138,14 @@ for epoch in master_bar(range(num_epochs)):
     # by collecting each samples_per_batch, until complete batch_size times
     # `num_samples_per_epoch = num_batches * batch_size`
     for _ in progress_bar(range(num_batches)):
-      batch_all_step_preds, batch_log_probs, batch_rewards = sample_from_ddpm_celebahq(
+      batch_all_step_preds, batch_log_probs = sample_from_ddpm_celebahq(
                                                                 batch_size,
                                                                 scheduler,
                                                                 image_pipe,
-                                                                reward_model,
                                                                 device)
 
-      # obtain advantages by standardizing the final rewards
+      # compute reward, and obtain advantages by standardizing rewards
+      batch_rewards = reward_model(batch_all_step_preds[-1])
       batch_advantages = standardize(batch_rewards)
 
       # store information...
