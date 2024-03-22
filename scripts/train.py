@@ -10,13 +10,12 @@ from PIL import Image
 from tqdm import tqdm
 # from fastprogress import progress_bar, master_bar
 
-
+from ddpo.config import Task
 from ddpo.utils import flush, decode_tensor_to_np_img
-from ddpo.rewards import aesthetic_score
+from ddpo.rewards import aesthetic_score, under30_old, over50_old
 from ddpo.ddpo import (compute_loss,
                        sample_from_ddpm_celebahq, 
                        standardize)
-
 
 
 # Set up logging----------------------------------------------------------------
@@ -35,6 +34,7 @@ def master_bar(iterable, **kwargs):
 parser = argparse.ArgumentParser(description="DDPO")
 
 parser.add_argument('--wandb_logging', type=bool, default=True)
+parser.add_argument('--task', type=Task, choices=list(Task), default=Task.LAION)
 parser.add_argument('--num_samples_per_epoch', type=int, default=10)
 parser.add_argument('--num_epochs', type=int, default=5)
 parser.add_argument('--num_inner_epochs', type=int, default=1)
@@ -51,6 +51,7 @@ parser.add_argument("--output_dir", type=str, default="./output", help="output d
 args = parser.parse_args()
 
 wandb_logging = args.wandb_logging
+task = args.task
 num_samples_per_epoch = args.num_samples_per_epoch
 num_epochs = args.num_epochs
 num_inner_epochs = args.num_inner_epochs
@@ -84,8 +85,15 @@ logging.info(f"Number batches (`num_samples_per_epoch / batch_size`): {num_batch
 
 # Initialize wandb--------------------------------------------------------------
 if wandb_logging:
-  wandb.init(project="ddpo-aesthetic-ddpm-celebahq256", 
-             config=config)
+  if task == Task.LAION:
+    wandb.init(project="ddpo-aesthetic-ddpm-celebahq256", 
+                config=config)
+  elif task == Task.UNDER30:
+    wandb.init(project="ddpo-under30-ddpm-celebahq256", 
+                config=config)
+  elif task == Task.OVER50:
+    wandb.init(project="ddpo-over50-ddpm-celebahq256", 
+                config=config)
   logging.info("Logging to wandb successful")
 
 
@@ -101,7 +109,12 @@ scheduler = DDIMScheduler.from_pretrained(ddpm_ckpt)
 scheduler.set_timesteps(num_inference_steps=num_inference_steps, device=device)
 
 # Download and initialize the reward model
-reward_model = aesthetic_score()
+if task == Task.LAION:
+    reward_model = aesthetic_score()
+elif task == Task.UNDER30:
+    reward_model = under30_old()
+elif task == Task.OVER50:
+    reward_model = over50_old()
 
 # Optimizer
 optimizer = torch.optim.AdamW(image_pipe.unet.parameters(), lr=lr, weight_decay=weight_decay) # optimizer
@@ -161,7 +174,7 @@ for epoch in master_bar(range(num_epochs)):
         wandb.log(
             {
                 "img batch": [
-                    wandb.Image(Image.fromarray(img), caption=f"aesthetic score ({epoch+1}ep): {reward.item()}")
+                    wandb.Image(Image.fromarray(img), caption=f"{task} ({epoch+1}ep): {reward.item()}")
                     for img, reward in
                     zip(decode_tensor_to_np_img(all_step_preds[-1], melt_batch=False), all_rewards)
                 ]

@@ -18,8 +18,9 @@ def aesthetic_score():
 def under30_old():
     from transformers import ViTFeatureExtractor, ViTForImageClassification
 
-    model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
-    transforms = ViTFeatureExtractor.from_pretrained('nateraw/vit-age-classifier')
+    model = ViTForImageClassification.from_pretrained("nateraw/vit-age-classifier")
+    transforms = ViTFeatureExtractor.from_pretrained("nateraw/vit-age-classifier")      
+    model.to("cuda")
 
     # Obtain id2label and label2id mapping
     # model.config.id2label, model.config.label2id
@@ -41,6 +42,7 @@ def over50_old():
     from transformers import ViTFeatureExtractor, ViTForImageClassification
     model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
     transforms = ViTFeatureExtractor.from_pretrained('nateraw/vit-age-classifier')
+    model.to("cuda")
 
     # obtain id2label and label2id mapping
     # model.config.id2label, model.config.label2id
@@ -56,6 +58,4 @@ def over50_old():
         return rewards
 
     return _fn
-    
-
     
