@@ -1,9 +1,13 @@
 import math
 import torch
 
-from fastprogress import progress_bar
+from tqdm import tqdm
+# from fastprogress import progress_bar
 from ddpo.utils import flush
 
+
+def progress_bar(iterable, **kwargs):
+    return tqdm(iterable, **kwargs)
 
 EPS = 1e-6
 
