@@ -48,6 +48,10 @@ parser.add_argument('--ddpm_ckpt', type=str, default="google/ddpm-celebahq-256")
 parser.add_argument('--device', type=str, default='cuda' if torch.cuda.is_available() else 'cpu')
 parser.add_argument("--output_dir", type=str, default="..", help="output directory to save model ckpt")
 
+# threshold and punishment prameter for under30_old and over50_old rewards
+parser.add_argument('--threshold', type=float, default=0.6)
+parser.add_argument('--punishment', type=float, default=-1.0)
+
 args = parser.parse_args()
 
 wandb_logging = args.wandb_logging
@@ -63,6 +67,8 @@ clip_advantages = args.clip_advantages
 clip_ratio = args.clip_ratio
 ddpm_ckpt = args.ddpm_ckpt
 device = args.device
+threshold = args.threshold
+punishment = args.punishment
 num_batches = num_samples_per_epoch // batch_size
 
 # Create config for logging-----------------------------------------------------
@@ -113,9 +119,9 @@ scheduler.set_timesteps(num_inference_steps=num_inference_steps, device=device)
 if task == Task.LAION:
     reward_model = aesthetic_score()
 elif task == Task.UNDER30:
-    reward_model = under30_old()
+    reward_model = under30_old(threshold=threshold, punishment=punishment)
 elif task == Task.OVER50:
-    reward_model = over50_old()
+    reward_model = over50_old(threshold=threshold, punishment=punishment)
 
 # Optimizer
 optimizer = torch.optim.AdamW(image_pipe.unet.parameters(), lr=lr, weight_decay=weight_decay) # optimizer
