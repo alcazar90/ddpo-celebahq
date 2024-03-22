@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "DDPO-celebahq-256"
+version = "0.0.1"
+authors = [
+  { name="Cristóbal Alcázar", email="cristobal.alcazar@ug.uchile.cl" },
+]
+description = "Artifact to explore DDPO for fine-tuning diffusion models using policy gradient methods."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/alcazar90/ddpo-celebahq"
+Issues = "https://github.com/alcazar90/ddpo-celebahq/issues"
+
+[project.dependencies]
+matplotlib = "3.7.1"
+Pillow = "9.4.0"
+numpy = "1.25.2"
+torch = "2.2.1"
+torchvision = "0.17.1"
+diffusers = "0.27.2"
+accelerate = "0.28.0"
+git+https://github.com/openai/CLIP.git   
+wandb = "0.16.4"
+tqdm = "^4.66.0"
+fastprogress = "^1.0.3"
