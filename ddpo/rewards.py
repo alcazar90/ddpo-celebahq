@@ -16,7 +16,7 @@ def aesthetic_score():
     return _fn
 
 
-def over50_old():
+def over50_old(threshold: float = 0.6, punishment: float = -1.0):
     from transformers import ViTImageProcessor, ViTForImageClassification
     model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
     transforms = ViTImageProcessor.from_pretrained('nateraw/vit-age-classifier')
@@ -31,14 +31,15 @@ def over50_old():
         with torch.no_grad():
           outputs = model(inputs).logits
         probs = outputs.softmax(dim=1)
-        rewards = probs[:, 6:].sum(dim=1)
+        probs = probs[:, 6:].sum(dim=1)
+        rewards = torch.where(probs > threshold, probs, punishment)
         return rewards
 
     return _fn
 
 
 
-def under30_old():
+def under30_old(threshold: float = 0.6, punishment: float = -1.0):
     from transformers import ViTImageProcessor, ViTForImageClassification
     model = ViTForImageClassification.from_pretrained('nateraw/vit-age-classifier')
     transforms = ViTImageProcessor.from_pretrained('nateraw/vit-age-classifier')
@@ -53,7 +54,8 @@ def under30_old():
         with torch.no_grad():
           outputs = model(inputs).logits
         probs = outputs.softmax(dim=1)
-        rewards = probs[:, :4].sum(dim=1)
+        probs = probs[:, :4].sum(dim=1)
+        rewards = torch.where(probs > threshold, probs, punishment)
         return rewards
 
     return _fn
