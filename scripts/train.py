@@ -253,7 +253,7 @@ for epoch in master_bar(range(num_epochs)):
     del advantages_chunked
     flush()
 
-if wandb.logging:
+if wandb_logging:
     wandb.finish()
 
 # save the model
