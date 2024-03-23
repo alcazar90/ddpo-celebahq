@@ -87,6 +87,10 @@ config = dict(
     ddpm_ckpt=ddpm_ckpt,
 )
 
+if task in (Task.UNDER30, Task.OVER50):
+    config["threshold"] = threshold
+    config["punishment"] = punishment
+
 logging.info(f"Number batches (`num_samples_per_epoch / batch_size`): {num_batches}")
 
 
