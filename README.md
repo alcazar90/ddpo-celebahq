@@ -7,12 +7,13 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
 
 ----
 
-<a href="https://api.wandb.ai/links/alcazar90/7k7k0yph" target="_blank">[W&B🪄]</a>
+<a href="https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256?nw=nwuseralcazar90" target="_blank">[W&B🪄]</a>
 
 <a href="https://colab.research.google.com/drive/1zSaDb8tTG4jgMlWP2-V5ctX9qwzHzP9j?usp=sharing">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
+![](./assets/googple-ddpm-celebahq256-portrait-samples-trajectory-dataset.png)
 
 Implementation of [_Training Diffusion Models with Reinforcement Learning_](https://arxiv.org/abs/2305.13301) on the model [`google/ddpm-celebahq-256`](https://huggingface.co/google/ddpm-celebahq-256).
 
