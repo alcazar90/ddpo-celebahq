@@ -18,7 +18,7 @@ class AestheticRewardModel(nn.Module):
 
     Reference about the MLP: https://github.com/christophschuhmann/improved-aesthetic-predictor/blob/6934dd81792f086e613a121dbce43082cb8be85e/train_predictor.py#L17
     More about the LAION aesthetic predictor: https://laion.ai/blog/laion-aesthetics/
-    More about the CLIP model: https://github.com/mlfoundations/open_clip
+    More about the CLIP model: https://github.com/openai/CLIP
     """
 
     def __init__(self, model_checkpoint: str, device: str = 'cuda', cache: str = "."):
