@@ -13,7 +13,6 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
-![](./assets/googple-ddpm-celebahq256-portrait-samples-trajectory-dataset.png)
 
 Implementation of [_Training Diffusion Models with Reinforcement Learning_](https://arxiv.org/abs/2305.13301) on the model [`google/ddpm-celebahq-256`](https://huggingface.co/google/ddpm-celebahq-256).
 
