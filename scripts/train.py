@@ -105,6 +105,12 @@ if wandb_logging:
   elif task == Task.OVER50:
     wandb.init(project="ddpo-over50-ddpm-celebahq256", 
                 config=config)
+  elif task == Task.COMPRESSIBILITY:
+    wandb.init(project="ddpo-compressibility-ddpm-celebahq256", 
+                config=config)
+  elif task == Task.INCOMPRESSIBILITY:
+    wandb.init(project="ddpo-incompressibility-ddpm-celebahq256", 
+                config=config)
   logging.info("Logging to wandb successful")
 
 
