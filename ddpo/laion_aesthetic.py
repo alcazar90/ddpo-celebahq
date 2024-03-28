@@ -119,7 +119,7 @@ class AestheticRewardModel(nn.Module):
             images (Union[np.ndarray, List[Union[np.ndarray, torch.Tensor]]]): Input image or list of images.
 
         Returns:
-            torch.Tensor: Aesthetic score of the image(s).
+            torch.Tensor: Aesthetic score of the image(s), shape (n,).
         """
         if not isinstance(images, list):
           images = [images]
@@ -140,12 +140,12 @@ class AestheticRewardModel(nn.Module):
               image_features = self.clip_model.encode_image(self.preprocess(Image.fromarray(self._from_tensor_to_numpy(images[0]))).unsqueeze(0).to(self.device))
               im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
               self.aesthetic_model.eval()
-              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device))
+              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device)).squeeze(1)
               return prediction
           else:
               imgs = torch.stack([self.preprocess(Image.fromarray(self._from_tensor_to_numpy(img))) for img in images])
               image_features = self.clip_model.encode_image(imgs.to(self.device))
               im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
               self.aesthetic_model.eval()
-              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device))
+              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device)).squeeze(1)
               return prediction
