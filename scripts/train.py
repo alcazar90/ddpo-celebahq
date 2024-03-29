@@ -11,7 +11,13 @@ from tqdm import tqdm
 
 from ddpo.config import Task
 from ddpo.ddpo import compute_loss, sample_from_ddpm_celebahq, standardize
-from ddpo.rewards import aesthetic_score, over50_old, under30_old
+from ddpo.rewards import (
+    aesthetic_score,
+    jpeg_compressibility,
+    jpeg_incompressibility,
+    over50_old,
+    under30_old,
+)
 from ddpo.utils import decode_tensor_to_np_img, flush
 
 # Set up logging----------------------------------------------------------------
@@ -132,6 +138,10 @@ elif task == Task.UNDER30:
     reward_model = under30_old(threshold=threshold, punishment=punishment)
 elif task == Task.OVER50:
     reward_model = over50_old(threshold=threshold, punishment=punishment)
+elif task == Task.COMPRESSIBILITY:
+    reward_model = jpeg_compressibility()
+elif task == Task.INCOMPRESSIBILITY:
+    reward_model = jpeg_incompressibility()
 
 # Optimizer
 optimizer = torch.optim.AdamW(
