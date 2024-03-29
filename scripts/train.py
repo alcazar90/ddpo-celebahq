@@ -120,7 +120,6 @@ if wandb_logging:
 # Load ddpm_ckpt from hugging face using diffusers library. Only allowed dppm and compatible
 # with DDIMScheduler
 logging.info("Loading DDPM model and scheduler...")
-logging.info("Allowing TF32 for faster matrix multiplication")
 
 image_pipe = DDPMPipeline.from_pretrained(ddpm_ckpt).to(device)
 scheduler = DDIMScheduler.from_pretrained(ddpm_ckpt)
