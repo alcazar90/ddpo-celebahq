@@ -88,6 +88,6 @@ def jpeg_compressibility():
     def _fn(images, metadata=None):
         rew, meta = jpeg_fn(images, metadata)
         # return -rew, meta
-        return rew
+        return -rew
 
     return _fn
