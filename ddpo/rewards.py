@@ -65,8 +65,8 @@ def under30_old(threshold: float = 0.6, punishment: float = -1.0):
 
 
 def jpeg_incompressibility():
-    # Copy directly from https://github.com/kvablack/ddpo-pytorch/blob/main/ddpo_pytorch/rewards.py
-    def _fn(images, prompts, metadata):
+    """Return the size of the images in kilobytes, after JPEG compression"""
+    def _fn(images, metadata=None):
         if isinstance(images, torch.Tensor):
             images = (images * 255).round().clamp(0, 255).to(torch.uint8).cpu().numpy()
             images = images.transpose(0, 2, 3, 1)  # NCHW -> NHWC
@@ -75,17 +75,19 @@ def jpeg_incompressibility():
         for image, buffer in zip(images, buffers):
             image.save(buffer, format="JPEG", quality=95)
         sizes = [buffer.tell() / 1000 for buffer in buffers]
-        return np.array(sizes), {}
+        # return np.array(sizes), {}
+        return np.array(sizes)
 
     return _fn
 
 
 def jpeg_compressibility():
-    # Copy directly from https://github.com/kvablack/ddpo-pytorch/blob/main/ddpo_pytorch/rewards.py
+    """Return the negative size of the images in kilobytes, after JPEG compression"""
     jpeg_fn = jpeg_incompressibility()
 
-    def _fn(images, prompts, metadata):
-        rew, meta = jpeg_fn(images, prompts, metadata)
-        return -rew, meta
+    def _fn(images, metadata=None):
+        rew, meta = jpeg_fn(images, metadata)
+        # return -rew, meta
+        return rew
 
     return _fn
