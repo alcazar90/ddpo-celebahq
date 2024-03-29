@@ -19,6 +19,8 @@ class AestheticRewardModel(nn.Module):
     Reference about the MLP: https://github.com/christophschuhmann/improved-aesthetic-predictor/blob/6934dd81792f086e613a121dbce43082cb8be85e/train_predictor.py#L17
     More about the LAION aesthetic predictor: https://laion.ai/blog/laion-aesthetics/
     More about the CLIP model: https://github.com/openai/CLIP
+
+    About clip features reproducibility issue: https://github.com/openai/CLIP/issues/13
     """
 
     def __init__(self, model_checkpoint: str, device: str = 'cuda', cache: str = "."):
@@ -109,7 +111,11 @@ class AestheticRewardModel(nn.Module):
         Returns:
             np.ndarray: Converted numpy array.
         """
-        return ((x.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5).numpy() * 255).astype(np.uint8)
+        # return ((x.permute(1, 2, 0).cpu().clip(-1, 1) * 0.5 + 0.5).numpy() * 255).round().astype(np.uint8)
+        np_img = (x * 0.5 + 0.5).clamp(0, 1)
+        np_img = np_img.detach().cpu().permute(1, 2, 0).numpy()
+        np_img = (np_img * 255).round().astype(np.uint8)
+        return np_img
 
     def forward(self, images: Union[np.ndarray, List[Union[np.ndarray, torch.Tensor]]]) -> torch.Tensor:
         """
@@ -119,7 +125,7 @@ class AestheticRewardModel(nn.Module):
             images (Union[np.ndarray, List[Union[np.ndarray, torch.Tensor]]]): Input image or list of images.
 
         Returns:
-            torch.Tensor: Aesthetic score of the image(s), shape (n,).
+            torch.Tensor: Aesthetic score of the image(s).
         """
         if not isinstance(images, list):
           images = [images]
@@ -137,15 +143,19 @@ class AestheticRewardModel(nn.Module):
 
         with torch.no_grad():
           if len(images) == 1:
-              image_features = self.clip_model.encode_image(self.preprocess(Image.fromarray(self._from_tensor_to_numpy(images[0]))).unsqueeze(0).to(self.device))
-              im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
+              self.clip_model.eval()
               self.aesthetic_model.eval()
-              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device)).squeeze(1)
+              clip_input = self.preprocess(Image.fromarray(self._from_tensor_to_numpy(images[0]))).unsqueeze(0).cuda()
+              image_features = self.clip_model.encode_image(clip_input)
+              im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
+              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device)).squeeze(1)  # return torch tensor 1dim
               return prediction
           else:
-              imgs = torch.stack([self.preprocess(Image.fromarray(self._from_tensor_to_numpy(img))) for img in images])
-              image_features = self.clip_model.encode_image(imgs.to(self.device))
-              im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
+              self.clip_model.eval()
               self.aesthetic_model.eval()
-              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device)).squeeze(1)
+              clip_input = [self.preprocess(Image.fromarray(self._from_tensor_to_numpy(img))).cuda() for img in images]
+              clip_input = torch.stack(clip_input)
+              image_features = self.clip_model.encode_image(clip_input)
+              im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
+              prediction = self.aesthetic_model(torch.from_numpy(im_emb_arr).float().to(self.device)).squeeze(1)  # return torch tensor 1dim
               return prediction
