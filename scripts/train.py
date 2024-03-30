@@ -178,7 +178,7 @@ for epoch in master_bar(range(num_epochs)):
             device,
         )
 
-        # compute reward, and obtain advantages by standardizing rewards
+        # compute reward on the final step (sample), and obtain advantages
         batch_rewards = reward_model(batch_all_step_preds[-1])
         batch_advantages = standardize(batch_rewards)
 
@@ -243,7 +243,8 @@ for epoch in master_bar(range(num_epochs)):
         for i in progress_bar(range(len(all_step_preds_chunked))):
             optimizer.zero_grad()
 
-            loss = compute_loss(
+            # Obtain the loss value and the ratio of the importance weight
+            loss, prob_ratio = compute_loss(
                 all_step_preds_chunked[i],
                 log_probs_chunked[i],
                 advantages_chunked[i],
@@ -265,6 +266,9 @@ for epoch in master_bar(range(num_epochs)):
                 wandb.log(
                     {
                         "loss": loss,
+                        "prob_ratio": wandb.Histogram(
+                            prob_ratio.detach().cpu().numpy()
+                        ),
                         "epoch": epoch,
                         "batch": i,
                     },
@@ -287,6 +291,43 @@ for epoch in master_bar(range(num_epochs)):
         wandb.log({"mean_reward": mean_rewards[-1]})
 
     epoch_loss.append(inner_loop_losses)
+
+    # evaluation loop each X epochs, and at the start and end of training
+    # eval_every_each_epoch = 5
+    # eval_random_seed = 42
+    # if (epoch + 1) % eval_every_each_epoch == 0 or epoch == 0:
+    #     logging.info("Evaluating model on a batch of images...")
+    #     with torch.no_grad():
+    #         batch_all_step_preds, _ = sample_from_ddpm_celebahq(
+    #             batch_size,
+    #             scheduler,
+    #             image_pipe,
+    #             device,
+    #             random_seed=eval_random_seed,
+    #         )
+    #         batch_rewards = reward_model(batch_all_step_preds[-1])
+    #         logging.info(" -> eval mean reward: %s", batch_rewards.mean().item())
+
+    #         if wandb_logging:
+    #             wandb.log(
+    #                 {
+    #                     "eval img batch": [
+    #                         wandb.Image(
+    #                             Image.fromarray(img),
+    #                             caption=f"{task} ({epoch+1}ep): {reward.item()}",
+    #                         )
+    #                         for img, reward in zip(
+    #                             decode_tensor_to_np_img(
+    #                                 batch_all_step_preds[-1],
+    #                                 melt_batch=False,
+    #                             ),
+    #                             batch_rewards,
+    #                         )
+    #                     ],
+    #                 },
+    #             )
+    # # ~~ end of evaluation ~~
+
     # clean variables
     logging.info(" -> free GPU memory")
     del all_step_preds_chunked
