@@ -204,6 +204,15 @@ def compute_loss(
             1.0 - clip_ratio,
             1.0 + clip_ratio,
         )  # this is the surrogate loss, but with artificially clipped ratios
+
+        # compute % of clipped ratios
+        pct_clipped_ratios = (
+            torch.sum(
+                torch.logical_or(ratio < 1.0 - clip_ratio, ratio > 1.0 + clip_ratio),
+            )
+            / ratio.size(0)
+        ).item()
+
         loss = torch.max(
             unclipped_loss,
             clipped_loss,
@@ -211,4 +220,4 @@ def compute_loss(
         loss.backward()  # perform backward here, gets accumulated for all the timesteps
 
         loss_value += loss.item()
-    return loss_value
+    return loss_value, ratio, pct_clipped_ratios

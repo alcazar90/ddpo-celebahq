@@ -244,7 +244,7 @@ for epoch in master_bar(range(num_epochs)):
             optimizer.zero_grad()
 
             # Obtain the loss value and the ratio of the importance weight
-            loss, prob_ratio = compute_loss(
+            loss, prob_ratio, pct_clipped_ratios = compute_loss(
                 all_step_preds_chunked[i],
                 log_probs_chunked[i],
                 advantages_chunked[i],
@@ -266,8 +266,9 @@ for epoch in master_bar(range(num_epochs)):
                 wandb.log(
                     {
                         "loss": loss,
+                        "pct_clipped_ratios": pct_clipped_ratios,
                         "prob_ratio": wandb.Histogram(
-                            prob_ratio.detach().cpu().numpy()
+                            prob_ratio.detach().cpu().numpy(),
                         ),
                         "epoch": epoch,
                         "batch": i,
