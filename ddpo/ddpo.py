@@ -165,6 +165,7 @@ def compute_loss(
     unet = image_pipe.unet.to(device)
     num_inference_steps = scheduler.num_inference_steps
     loss_value = 0.0
+    logr = 0.0
     for i, t in enumerate(scheduler.timesteps):
         clipped_advantages = torch.clip(
             advantages,
@@ -195,6 +196,7 @@ def compute_loss(
         ).mean(dim=tuple(range(1, prev_sample_mean.ndim)))
 
         # calculate loss
+        # ratio probability current policy / probability original policy
         ratio = torch.exp(
             current_log_probs - original_log_probs[i].detach(),
         )  # this is the importance ratio of the new policy to the old policy
@@ -220,4 +222,12 @@ def compute_loss(
         loss.backward()  # perform backward here, gets accumulated for all the timesteps
 
         loss_value += loss.item()
-    return loss_value, ratio, pct_clipped_ratios
+
+        # calculate KL between the current policy and the original policy
+        logr += torch.sum(
+            current_log_probs - original_log_probs[i].detach(),
+        )
+
+    # Follow approximation KL based on: http://joschu.net/blog/kl-approx.html
+    k3 = (logr.exp() - 1) - logr
+    return loss_value, ratio, pct_clipped_ratios, k3.mean().item()
