@@ -328,7 +328,6 @@ for epoch in master_bar(range(num_epochs)):
                     "samples",
                     "final_reward",
                     "reward_trajectory",
-                    "logp_trajectory",
                 ],
             )
 
@@ -352,10 +351,6 @@ for epoch in master_bar(range(num_epochs)):
                     eval_rdf[rc][-1:].item(),
                     wandb.Image(
                         plt,
-                    ),
-                    wandb.Image(
-                        # create logp trajectory plot
-                        plt.plot(eval_logp[:, rc], label="logp trajectory"),
                     ),
                 )
     # # ~~ end of evaluation ~~
