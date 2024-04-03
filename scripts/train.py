@@ -343,7 +343,7 @@ for epoch in master_bar(range(num_epochs)):
                 table.add_data(
                     wandb.Image(
                         Image.fromarray(
-                            decode_tensor_to_np_img(img.unsqueeze(0), melt_batch=False)
+                            decode_tensor_to_np_img(img.unsqueeze(0), melt_batch=True),
                         ),
                     ),
                     rc[-1:].item(),
