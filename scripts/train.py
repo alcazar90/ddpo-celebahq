@@ -353,6 +353,7 @@ for epoch in master_bar(range(num_epochs)):
                         plt,
                     ),
                 )
+            wandb.log({f"eval_table_{epoch + 1}": table})
     # # ~~ end of evaluation ~~
 
     # clean variables
