@@ -3,9 +3,9 @@
 import argparse
 import logging
 
+import matplotlib.pyplot as plt
 import torch
 import wandb
-import matplotlib.pyplot as plt
 from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm import tqdm
@@ -24,7 +24,7 @@ from ddpo.rewards import (
     over50_old,
     under30_old,
 )
-from ddpo.utils import decode_tensor_to_np_img, decode_tensor_to_img, flush
+from ddpo.utils import decode_tensor_to_img, decode_tensor_to_np_img, flush
 
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -324,32 +324,33 @@ for epoch in master_bar(range(num_epochs)):
 
             # log the evaluation results in a wandb.Table
             table = wandb.Table(
-                columns=["samples", "final_reward", "reward_trajectory", "logp_trajectory"],
+                columns=[
+                    "samples",
+                    "final_reward",
+                    "reward_trajectory",
+                    "logp_trajectory",
+                ],
             )
 
             plt.style.use("seaborn-whitegrid")
             for img, rc, lp in zip(eval_imgs, eval_rdf, eval_logp):
+                # create reward plot trajectory
+                plt.figure(figsize=(10, 4))
+                plt.plot(rc, label="reward trajectory")
+                plt.xlim(0, 40)
+                plt.grid(color="lightgrey", linewidth=0.4)
+                (plt.legend(frameon=False),)
                 table.add_data(
                     wandb.Image(decode_tensor_to_img(img, num_rows_per_grid=1)),
                     rc[-1:].item(),
                     wandb.Image(
-                        # create reward plot trajectory
-                        plt.figure(figsize=(10, 4))
-                        plt.plot(rc, label="reward trajectory")
-                        plt.xlim(0, 40)
-                        plt.grid(color="lightgrey", linewidth=0.4)
-                        plt.legend(frameon=False),
+                        plt,
                     ),
                     wandb.Image(
                         # create logp trajectory plot
-                        plt.figure(figsize=(10, 4))
-                        plt.plot(lp, label="logp trajectory")
-                        plt.xlim(0, 40)
-                        plt.grid(color="lightgrey", linewidth=0.4)
-                        plt.legend(frameon=False),
+                        plt.plot(lp, label="logp trajectory"),
                     ),
                 )
-
 
     # # ~~ end of evaluation ~~
 
