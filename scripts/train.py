@@ -342,7 +342,9 @@ for epoch in master_bar(range(num_epochs)):
                 (plt.legend(frameon=False),)
                 table.add_data(
                     wandb.Image(
-                        Image.fromarray(decode_tensor_to_np_img(img, melt_batch=False)),
+                        Image.fromarray(
+                            decode_tensor_to_np_img(img.unsqueeze(0), melt_batch=False)
+                        ),
                     ),
                     rc[-1:].item(),
                     wandb.Image(
