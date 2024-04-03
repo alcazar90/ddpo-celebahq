@@ -2,6 +2,7 @@
 
 import math
 
+import pandas as pd
 import torch
 from tqdm import tqdm
 
@@ -32,7 +33,8 @@ def standardize(x):
 
 def calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t, eps=EPS):
     """Compute logs probs for prev_sample from a normal distribution with mean
-    prev_sample_meand and std std_dev_t.
+    prev_sample_mean and std std_dev_t.d.
+
     """
     std_dev_t = torch.clip(std_dev_t, eps)
     return (
@@ -231,3 +233,41 @@ def compute_loss(
     # Follow approximation KL based on: http://joschu.net/blog/kl-approx.html
     k3 = (logr.exp() - 1) - logr
     return loss_value, ratio, pct_clipped_ratios, k3.mean().item()
+
+
+def evaluation_loop(
+    reward_function,
+    scheduler,
+    image_pipe,
+    device,
+    num_samples: int = 4,
+    rnd_seed: int = 666,
+    previous_logp=None,
+):
+    """Given a random seed compute and return metrics to evaluate on same same subset the model"""
+    # (1) Obtain sample and latents
+    trajectory, logp = sample_from_ddpm_celebahq(
+        num_samples=num_samples,
+        scheduler=scheduler,
+        image_pipe=image_pipe,
+        device=device,
+        random_seed=rnd_seed,
+    )
+
+    # (2) Compute reward over trajectory
+    r = [reward_function(t) for t in trajectory]
+    # rows are t in trajectory, columns are samples ids, and values are the
+    # corresponding rewards for the given sample at timestep t
+    r_df = pd.DataFrame(torch.vstack(r).detach().cpu().numpy())
+
+    # (3) Compute the loss
+
+    # (4) Compute the KL with the previous sample set
+    k = None
+    if previous_logp is not None:
+        logr = (previous_logp - logp).sum(axis=0)
+        k = (logr.exp() - 1) - logr
+        k = k.mean().item()
+
+    # (5) Return everything...
+    return trajectory[-1], r_df, logp.detach().cpu(), k

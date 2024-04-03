@@ -5,12 +5,18 @@ import logging
 
 import torch
 import wandb
+import matplotlib.pyplot as plt
 from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm import tqdm
 
 from ddpo.config import Task
-from ddpo.ddpo import compute_loss, sample_from_ddpm_celebahq, standardize
+from ddpo.ddpo import (
+    compute_loss,
+    evaluation_loop,
+    sample_from_ddpm_celebahq,
+    standardize,
+)
 from ddpo.rewards import (
     aesthetic_score,
     jpeg_compressibility,
@@ -18,13 +24,13 @@ from ddpo.rewards import (
     over50_old,
     under30_old,
 )
-from ddpo.utils import decode_tensor_to_np_img, flush
+from ddpo.utils import decode_tensor_to_np_img, decode_tensor_to_img, flush
 
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 
-# Set up progress bars---------------------------------------------------------
+# Set up progress bars----------------------------------------------------------
 def progress_bar(iterable, **kwargs):
     return tqdm(iterable, **kwargs)
 
@@ -49,6 +55,9 @@ parser.add_argument("--weight_decay", type=float, default=1e-4)
 parser.add_argument("--clip_advantages", type=float, default=2.5)
 parser.add_argument("--clip_ratio", type=float, default=1e-4)
 parser.add_argument("--ddpm_ckpt", type=str, default="google/ddpm-celebahq-256")
+parser.add_argument("--eval_every_each_epoch", type=int, default=None)
+parser.add_argument("--eval_rnd_seed", type=int, default=666)
+parser.add_argument("--num_eval_samples", type=int, default=2)
 parser.add_argument(
     "--device",
     type=str,
@@ -83,6 +92,9 @@ device = args.device
 threshold = args.threshold
 punishment = args.punishment
 num_batches = num_samples_per_epoch // batch_size
+eval_every_each_epoch = args.eval_every_each_epoch
+eval_random_seed = args.eval_rnd_seed
+num_eval_samples = args.num_eval_samples
 
 # Create config for logging-----------------------------------------------------
 config = {
@@ -98,6 +110,9 @@ config = {
     "clip_advantages": clip_advantages,
     "clip_ratio": clip_ratio,
     "ddpm_ckpt": ddpm_ckpt,
+    "eval_every_each_epoch": eval_every_each_epoch,
+    "eval_rnd_seed": eval_random_seed,
+    "num_eval_samples": num_eval_samples,
 }
 
 if task in (Task.UNDER30, Task.OVER50):
@@ -295,39 +310,47 @@ for epoch in master_bar(range(num_epochs)):
     epoch_loss.append(inner_loop_losses)
 
     # evaluation loop each X epochs, and at the start and end of training
-    # eval_every_each_epoch = 5
-    # eval_random_seed = 42
-    # if (epoch + 1) % eval_every_each_epoch == 0 or epoch == 0:
-    #     logging.info("Evaluating model on a batch of images...")
-    #     with torch.no_grad():
-    #         batch_all_step_preds, _ = sample_from_ddpm_celebahq(
-    #             batch_size,
-    #             scheduler,
-    #             image_pipe,
-    #             device,
-    #             random_seed=eval_random_seed,
-    #         )
-    #         batch_rewards = reward_model(batch_all_step_preds[-1])
-    #         logging.info(" -> eval mean reward: %s", batch_rewards.mean().item())
+    if eval_every_each_epoch is not None:
+        if (epoch + 1) % eval_every_each_epoch == 0 or epoch == 0:
+            logging.info("Evaluating model on a batch of images...")
+            eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
+                reward_model,
+                scheduler,
+                image_pipe,
+                device,
+                num_samples=num_eval_samples,
+                rnd_seed=eval_random_seed,
+            )
 
-    #         if wandb_logging:
-    #             wandb.log(
-    #                 {
-    #                     "eval img batch": [
-    #                         wandb.Image(
-    #                             Image.fromarray(img),
-    #                             caption=f"{task} ({epoch+1}ep): {reward.item()}",
-    #                         )
-    #                         for img, reward in zip(
-    #                             decode_tensor_to_np_img(
-    #                                 batch_all_step_preds[-1],
-    #                                 melt_batch=False,
-    #                             ),
-    #                             batch_rewards,
-    #                         )
-    #                     ],
-    #                 },
-    #             )
+            # log the evaluation results in a wandb.Table
+            table = wandb.Table(
+                columns=["samples", "final_reward", "reward_trajectory", "logp_trajectory"],
+            )
+
+            plt.style.use("seaborn-whitegrid")
+            for img, rc, lp in zip(eval_imgs, eval_rdf, eval_logp):
+                table.add_data(
+                    wandb.Image(decode_tensor_to_img(img, num_rows_per_grid=1)),
+                    rc[][-1:].item(),
+                    wandb.Image(
+                        # create reward plot trajectory
+                        plt.figure(figsize=(10, 4))
+                        plt.plot(rc, label="reward trajectory")
+                        plt.xlim(0, 40)
+                        plt.grid(color="lightgrey", linewidth=0.4)
+                        plt.legend(frameon=False),
+                    ),
+                    wandb.Image(
+                        # create logp trajectory plot
+                        plt.figure(figsize=(10, 4))
+                        plt.plot(lp, label="logp trajectory")
+                        plt.xlim(0, 40)
+                        plt.grid(color="lightgrey", linewidth=0.4)
+                        plt.legend(frameon=False),
+                    ),
+                )
+
+
     # # ~~ end of evaluation ~~
 
     # clean variables
