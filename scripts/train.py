@@ -338,10 +338,10 @@ for epoch in master_bar(range(num_epochs)):
             ) in zip(eval_imgs, eval_rdf):
                 # create reward plot trajectory
                 plt.figure(figsize=(10, 4))
-                plt.plot(rc, label="reward trajectory")
+                plt.plot(eval_rdf[rc], label="reward trajectory")
                 plt.xlim(0, 40)
                 plt.grid(color="lightgrey", linewidth=0.4)
-                (plt.legend(frameon=False),)
+                plt.legend(frameon=False)
                 table.add_data(
                     wandb.Image(
                         Image.fromarray(
