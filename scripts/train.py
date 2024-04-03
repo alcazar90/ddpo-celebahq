@@ -311,7 +311,7 @@ for epoch in master_bar(range(num_epochs)):
 
     # evaluation loop each X epochs, and at the start and end of training
     if eval_every_each_epoch is not None:
-        if (epoch + 1) % eval_every_each_epoch == 0 or epoch == 0:
+        if ((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0:
             logging.info("Evaluating model on a batch of images...")
             eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
                 reward_model,
@@ -354,6 +354,7 @@ for epoch in master_bar(range(num_epochs)):
                     ),
                 )
             wandb.log({f"eval_table_{epoch + 1}": table})
+            del table
     # # ~~ end of evaluation ~~
 
     # clean variables
