@@ -353,8 +353,7 @@ for epoch in master_bar(range(num_epochs)):
                         plt,
                     ),
                 )
-            wandb.log({f"eval_table_{epoch + 1}": table})
-            del table
+            wandb.log({"eval_table": table})
     # # ~~ end of evaluation ~~
 
     # clean variables
@@ -362,6 +361,11 @@ for epoch in master_bar(range(num_epochs)):
     del all_step_preds_chunked
     del log_probs_chunked
     del advantages_chunked
+
+    del eval_imgs
+    del eval_rdf
+    del eval_logp
+    del k
     flush()
 
 if wandb_logging:
