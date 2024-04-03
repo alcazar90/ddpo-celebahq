@@ -24,7 +24,7 @@ from ddpo.rewards import (
     over50_old,
     under30_old,
 )
-from ddpo.utils import decode_tensor_to_img, decode_tensor_to_np_img, flush
+from ddpo.utils import decode_tensor_to_np_img, flush
 
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -341,7 +341,9 @@ for epoch in master_bar(range(num_epochs)):
                 plt.grid(color="lightgrey", linewidth=0.4)
                 (plt.legend(frameon=False),)
                 table.add_data(
-                    wandb.Image(decode_tensor_to_img(img, num_rows_per_grid=1)),
+                    wandb.Image(
+                        Image.fromarray(decode_tensor_to_np_img(img, melt_batch=False)),
+                    ),
                     rc[-1:].item(),
                     wandb.Image(
                         plt,
@@ -351,7 +353,6 @@ for epoch in master_bar(range(num_epochs)):
                         plt.plot(lp, label="logp trajectory"),
                     ),
                 )
-
     # # ~~ end of evaluation ~~
 
     # clean variables
