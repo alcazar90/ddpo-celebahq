@@ -331,7 +331,7 @@ for epoch in master_bar(range(num_epochs)):
             for img, rc, lp in zip(eval_imgs, eval_rdf, eval_logp):
                 table.add_data(
                     wandb.Image(decode_tensor_to_img(img, num_rows_per_grid=1)),
-                    rc[][-1:].item(),
+                    rc[-1:].item(),
                     wandb.Image(
                         # create reward plot trajectory
                         plt.figure(figsize=(10, 4))
