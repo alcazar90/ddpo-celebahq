@@ -333,7 +333,10 @@ for epoch in master_bar(range(num_epochs)):
             )
 
             plt.style.use("seaborn-whitegrid")
-            for img, rc, lp in zip(eval_imgs, eval_rdf, eval_logp):
+            for (
+                img,
+                rc,
+            ) in zip(eval_imgs, eval_rdf):
                 # create reward plot trajectory
                 plt.figure(figsize=(10, 4))
                 plt.plot(rc, label="reward trajectory")
@@ -352,7 +355,7 @@ for epoch in master_bar(range(num_epochs)):
                     ),
                     wandb.Image(
                         # create logp trajectory plot
-                        plt.plot(lp, label="logp trajectory"),
+                        plt.plot(eval_logp[:, rc], label="logp trajectory"),
                     ),
                 )
     # # ~~ end of evaluation ~~
