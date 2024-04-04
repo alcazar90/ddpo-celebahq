@@ -408,7 +408,7 @@ for epoch in master_bar(range(num_epochs)):
         # save model ckpt if the current mean reward is better than the best reward
         if eval_mean_reward > best_reward:
             logging.info(
-                " -> saving model ckpt for run %s, current mean reward: %s | best reward: %",
+                " -> saving model ckpt for run %s, current mean reward: %s | best reward: %s",
                 run.name,
                 eval_mean_reward,
                 best_reward,
@@ -435,6 +435,3 @@ for epoch in master_bar(range(num_epochs)):
 
 if wandb_logging:
     wandb.finish()
-
-# save the model
-image_pipe.save_pretrained(args.output_dir)
