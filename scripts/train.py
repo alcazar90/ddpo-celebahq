@@ -343,7 +343,7 @@ for epoch in master_bar(range(num_epochs)):
                 "original_samples",
                 "current_samples",
                 "current_final_reward",
-                "reward_trajectory",
+                "original_final_rewardreward_trajectory",
             ],
         )
 
@@ -373,15 +373,14 @@ for epoch in master_bar(range(num_epochs)):
                     Image.fromarray(
                         decode_tensor_to_np_img(o_img.unsqueeze(0), melt_batch=True),
                     ),
-                    caption=f"Rwd: {initial_eval_trajectories.iloc[-1, rc].item()}",
                 ),
                 wandb.Image(
                     Image.fromarray(
                         decode_tensor_to_np_img(c_img.unsqueeze(0), melt_batch=True),
                     ),
-                    caption=f"Rwd: {eval_rdf.iloc[-1, rc].item()}",
                 ),
                 eval_rdf[rc][-1:].item(),
+                initial_eval_trajectories[rc][-1:].item(),
                 wandb.Image(
                     plt,
                 ),
