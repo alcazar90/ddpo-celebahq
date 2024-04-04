@@ -343,7 +343,8 @@ for epoch in master_bar(range(num_epochs)):
                 "original_samples",
                 "current_samples",
                 "current_final_reward",
-                "original_final_rewardreward_trajectory",
+                "original_final_reward",
+                "reward_trajectory",
             ],
         )
 
