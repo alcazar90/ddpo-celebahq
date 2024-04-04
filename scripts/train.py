@@ -29,6 +29,10 @@ from ddpo.utils import decode_tensor_to_np_img, flush
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
+# Matplotlib settings-----------------------------------------------------------
+plt.rcParams["figure.max_open_warning"] = 60  # or any number greater than 20
+plt.style.use("seaborn-whitegrid")
+
 
 # Set up progress bars----------------------------------------------------------
 def progress_bar(iterable, **kwargs):
@@ -348,7 +352,6 @@ for epoch in master_bar(range(num_epochs)):
             ],
         )
 
-        plt.style.use("seaborn-whitegrid")
         for (
             o_img,
             c_img,
@@ -386,8 +389,8 @@ for epoch in master_bar(range(num_epochs)):
                     plt,
                 ),
             )
-            plt.close()
         wandb.log({"eval_table": table}, commit=False)
+        plt.close()
         eval_mean_reward = eval_rdf.iloc[-1, :].mean().item()
         logging.info(" -> eval mean reward (%s epoch): %s", epoch + 1, eval_mean_reward)
         wandb.log({"eval_mean_reward": eval_mean_reward})
