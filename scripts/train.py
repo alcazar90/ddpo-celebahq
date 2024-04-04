@@ -311,8 +311,10 @@ for epoch in master_bar(range(num_epochs)):
     epoch_loss.append(inner_loop_losses)
 
     # evaluation loop each X epochs, and at the start and end of training
-    if eval_every_each_epoch is not None and (
-        ((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0
+    if (
+        eval_every_each_epoch is not None
+        and (((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0)
+        and wandb_logging
     ):
         logging.info("Evaluating model on epoch %s", epoch + 1)
         eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
@@ -323,6 +325,25 @@ for epoch in master_bar(range(num_epochs)):
             num_samples=num_eval_samples,
             rnd_seed=eval_random_seed,
         )
+
+        # save the initial evaluation samples images (for comparison)
+        if epoch == 0:
+            wandb.log(
+                {
+                    "eval_samples_at_start": [
+                        wandb.Image(
+                            Image.fromarray(
+                                decode_tensor_to_np_img(
+                                    img.unsqueeze(0),
+                                    melt_batch=True,
+                                ),
+                                caption=f"{task} ({epoch+1}ep): {eval_rdf.iloc[-1, idx].item()}",
+                            ),
+                        )
+                        for idx, img in enumerate(eval_imgs)
+                    ],
+                },
+            )
 
         # log the evaluation results in a wandb.Table
         table = wandb.Table(
