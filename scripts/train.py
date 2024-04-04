@@ -337,8 +337,8 @@ for epoch in master_bar(range(num_epochs)):
                                     img.unsqueeze(0),
                                     melt_batch=True,
                                 ),
-                                caption=f"{task} ({epoch+1}ep): {eval_rdf.iloc[-1, idx].item()}",
                             ),
+                            caption=f"{task} ({epoch+1}ep): {eval_rdf.iloc[-1, idx].item()}",
                         )
                         for idx, img in enumerate(eval_imgs)
                     ],
