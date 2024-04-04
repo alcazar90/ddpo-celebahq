@@ -246,13 +246,14 @@ def evaluation_loop(
 ):
     """Given a random seed compute and return metrics to evaluate on same same subset the model"""
     # (1) Obtain sample and latents
-    trajectory, logp = sample_from_ddpm_celebahq(
-        num_samples=num_samples,
-        scheduler=scheduler,
-        image_pipe=image_pipe,
-        device=device,
-        random_seed=rnd_seed,
-    )
+    with torch.random.fork_rng():
+        trajectory, logp = sample_from_ddpm_celebahq(
+            num_samples=num_samples,
+            scheduler=scheduler,
+            image_pipe=image_pipe,
+            device=device,
+            random_seed=rnd_seed,
+        )
 
     # (2) Compute reward over trajectory
     r = [reward_function(t) for t in trajectory]
