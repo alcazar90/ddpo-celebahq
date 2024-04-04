@@ -101,6 +101,7 @@ run_seed = args.run_seed
 eval_every_each_epoch = args.eval_every_each_epoch
 eval_random_seed = args.eval_rnd_seed
 num_eval_samples = args.num_eval_samples
+output_dir = args.output_dir
 
 # Create config for logging-----------------------------------------------------
 config = {
@@ -132,16 +133,19 @@ logging.info("Number batches (`num_samples_per_epoch / batch_size`): %s", num_ba
 # Initialize wandb--------------------------------------------------------------
 if wandb_logging:
     if task == Task.LAION:
-        wandb.init(project="ddpo-aesthetic-ddpm-celebahq256", config=config)
+        run = wandb.init(project="ddpo-aesthetic-ddpm-celebahq256", config=config)
     elif task == Task.UNDER30:
-        wandb.init(project="ddpo-under30-ddpm-celebahq256", config=config)
+        run = wandb.init(project="ddpo-under30-ddpm-celebahq256", config=config)
     elif task == Task.OVER50:
-        wandb.init(project="ddpo-over50-ddpm-celebahq256", config=config)
+        run = wandb.init(project="ddpo-over50-ddpm-celebahq256", config=config)
     elif task == Task.COMPRESSIBILITY:
-        wandb.init(project="ddpo-compressibility-ddpm-celebahq256", config=config)
+        run = wandb.init(project="ddpo-compressibility-ddpm-celebahq256", config=config)
     elif task == Task.INCOMPRESSIBILITY:
-        wandb.init(project="ddpo-incompressibility-ddpm-celebahq256", config=config)
-    logging.info("Logging to wandb successful")
+        run = wandb.init(
+            project="ddpo-incompressibility-ddpm-celebahq256",
+            config=config,
+        )
+    logging.info("Logging to wandb successful, run %s", run.name)
 
 
 # Load models-------------------------------------------------------------------
@@ -181,6 +185,7 @@ logging.info("Initializing RL training loop...")
 
 mean_rewards = []
 epoch_loss = []
+best_reward = -float("inf")  # initialize best reward
 
 for epoch in master_bar(range(num_epochs)):
     logging.info("Epoch: %s", epoch + 1)
@@ -400,6 +405,24 @@ for epoch in master_bar(range(num_epochs)):
         del k
         flush()
 
+        # save model ckpt if the current mean reward is better than the best reward
+        if eval_mean_reward > best_reward:
+            logging.info(
+                " -> saving model ckpt for run %s, current mean reward: %s | best reward: %",
+                run.name,
+                eval_mean_reward,
+                best_reward,
+            )
+            # Save unet weights and optimizer state
+            torch.save(
+                {
+                    "model_state_dict": image_pipe.unet.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                },
+                f"{output_dir}/{task}-{run.name}-ckpt.pth",
+            )
+            best_reward = eval_mean_reward
+            logging.info("End evaluation loop")
     # # ~~ end of evaluation ~~
 
     # clean variables
