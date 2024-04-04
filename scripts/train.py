@@ -55,6 +55,7 @@ parser.add_argument("--weight_decay", type=float, default=1e-4)
 parser.add_argument("--clip_advantages", type=float, default=2.5)
 parser.add_argument("--clip_ratio", type=float, default=1e-4)
 parser.add_argument("--ddpm_ckpt", type=str, default="google/ddpm-celebahq-256")
+parser.add_argument("--run_seed", type=int, default=5633313988)
 parser.add_argument("--eval_every_each_epoch", type=int, default=None)
 parser.add_argument("--eval_rnd_seed", type=int, default=666)
 parser.add_argument("--num_eval_samples", type=int, default=2)
@@ -92,6 +93,7 @@ device = args.device
 threshold = args.threshold
 punishment = args.punishment
 num_batches = num_samples_per_epoch // batch_size
+run_seed = args.run_seed
 eval_every_each_epoch = args.eval_every_each_epoch
 eval_random_seed = args.eval_rnd_seed
 num_eval_samples = args.num_eval_samples
@@ -110,6 +112,7 @@ config = {
     "clip_advantages": clip_advantages,
     "clip_ratio": clip_ratio,
     "ddpm_ckpt": ddpm_ckpt,
+    "run_seed": run_seed,
     "eval_every_each_epoch": eval_every_each_epoch,
     "eval_rnd_seed": eval_random_seed,
     "num_eval_samples": num_eval_samples,
@@ -140,6 +143,9 @@ if wandb_logging:
 # Load models-------------------------------------------------------------------
 # Load ddpm_ckpt from hugging face using diffusers library. Only allowed dppm and
 # compatible with DDIMScheduler
+logging.info("Set experiment seed...")
+torch.manual_seed(run_seed)
+
 logging.info("Loading DDPM model and scheduler...")
 
 image_pipe = DDPMPipeline.from_pretrained(ddpm_ckpt).to(device)
