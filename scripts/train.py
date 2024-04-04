@@ -138,8 +138,8 @@ if wandb_logging:
 
 
 # Load models-------------------------------------------------------------------
-# Load ddpm_ckpt from hugging face using diffusers library. Only allowed dppm and compatible
-# with DDIMScheduler
+# Load ddpm_ckpt from hugging face using diffusers library. Only allowed dppm and
+# compatible with DDIMScheduler
 logging.info("Loading DDPM model and scheduler...")
 
 image_pipe = DDPMPipeline.from_pretrained(ddpm_ckpt).to(device)
@@ -219,7 +219,8 @@ for epoch in master_bar(range(num_epochs)):
         wandb.log({"min_reward": all_rewards.min().item()})
         wandb.log({"max_reward": all_rewards.max().item()})
         wandb.log({"reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy())})
-        # Nota: sobre las imagenes si suben con memoria ram, no sé si aporta mucho guardar todas
+        # Nota: sobre las imagenes si suben con memoria ram, no sé si aporta mucho
+        # guardar todas
         wandb.log(
             {
                 "img batch": [
@@ -310,55 +311,56 @@ for epoch in master_bar(range(num_epochs)):
     epoch_loss.append(inner_loop_losses)
 
     # evaluation loop each X epochs, and at the start and end of training
-    if eval_every_each_epoch is not None:
-        if ((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0:
-            logging.info("Evaluating model on a batch of images...")
-            eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
-                reward_model,
-                scheduler,
-                image_pipe,
-                device,
-                num_samples=num_eval_samples,
-                rnd_seed=eval_random_seed,
-            )
+    if eval_every_each_epoch is not None and (
+        ((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0
+    ):
+        logging.info("Evaluating model on a batch of images...")
+        eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
+            reward_model,
+            scheduler,
+            image_pipe,
+            device,
+            num_samples=num_eval_samples,
+            rnd_seed=eval_random_seed,
+        )
 
-            # log the evaluation results in a wandb.Table
-            table = wandb.Table(
-                columns=[
-                    "samples",
-                    "final_reward",
-                    "reward_trajectory",
-                ],
-            )
+        # log the evaluation results in a wandb.Table
+        table = wandb.Table(
+            columns=[
+                "samples",
+                "final_reward",
+                "reward_trajectory",
+            ],
+        )
 
-            plt.style.use("seaborn-whitegrid")
-            for (
-                img,
-                rc,
-            ) in zip(eval_imgs, eval_rdf):
-                # create reward plot trajectory
-                plt.figure(figsize=(10, 4))
-                plt.plot(eval_rdf[rc], label="reward trajectory")
-                plt.xlim(0, 40)
-                plt.grid(color="lightgrey", linewidth=0.4)
-                plt.legend(frameon=False)
-                table.add_data(
-                    wandb.Image(
-                        Image.fromarray(
-                            decode_tensor_to_np_img(img.unsqueeze(0), melt_batch=True),
-                        ),
+        plt.style.use("seaborn-whitegrid")
+        for (
+            img,
+            rc,
+        ) in zip(eval_imgs, eval_rdf):
+            # create reward plot trajectory
+            plt.figure(figsize=(10, 4))
+            plt.plot(eval_rdf[rc], label="reward trajectory")
+            plt.xlim(0, 40)
+            plt.grid(color="lightgrey", linewidth=0.4)
+            plt.legend(frameon=False)
+            table.add_data(
+                wandb.Image(
+                    Image.fromarray(
+                        decode_tensor_to_np_img(img.unsqueeze(0), melt_batch=True),
                     ),
-                    eval_rdf[rc][-1:].item(),
-                    wandb.Image(
-                        plt,
-                    ),
-                )
-            wandb.log({"eval_table": table})
-            del eval_imgs
-            del eval_rdf
-            del eval_logp
-            del k
-            flush()
+                ),
+                eval_rdf[rc][-1:].item(),
+                wandb.Image(
+                    plt,
+                ),
+            )
+        wandb.log({"eval_table": table})
+        del eval_imgs
+        del eval_rdf
+        del eval_logp
+        del k
+        flush()
 
     # # ~~ end of evaluation ~~
 
