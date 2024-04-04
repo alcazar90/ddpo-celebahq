@@ -328,48 +328,52 @@ for epoch in master_bar(range(num_epochs)):
 
         # save the initial evaluation samples images (for comparison)
         if epoch == 0:
-            wandb.log(
-                {
-                    "eval_samples_at_start": [
-                        wandb.Image(
-                            Image.fromarray(
-                                decode_tensor_to_np_img(
-                                    img.unsqueeze(0),
-                                    melt_batch=True,
-                                ),
-                            ),
-                            caption=f"{task} ({epoch+1}ep): {eval_rdf.iloc[-1, idx].item()}",
-                        )
-                        for idx, img in enumerate(eval_imgs)
-                    ],
-                },
-            )
+            initial_eval_samples = eval_imgs.detach().cpu().clone()
+            initial_eval_trajectories = eval_rdf.copy()
 
         # log the evaluation results in a wandb.Table
         table = wandb.Table(
             columns=[
-                "samples",
-                "final_reward",
+                "original_samples",
+                "current_samples",
+                "current_final_reward",
                 "reward_trajectory",
             ],
         )
 
         plt.style.use("seaborn-whitegrid")
         for (
-            img,
+            o_img,
+            c_img,
             rc,
-        ) in zip(eval_imgs, eval_rdf):
+        ) in zip(initial_eval_samples, eval_imgs, eval_rdf):
             # create reward plot trajectory
             plt.figure(figsize=(10, 4))
-            plt.plot(eval_rdf[rc], label="reward trajectory")
+            plt.plot(
+                eval_rdf[rc],
+                color="mediumseagreen",
+                label="current rwd trajectory",
+            )
+            plt.plot(
+                initial_eval_trajectories[rc],
+                color="indianred",
+                label="initial rwd trajectory",
+            )
             plt.xlim(0, 40)
             plt.grid(color="lightgrey", linewidth=0.4)
             plt.legend(frameon=False)
             table.add_data(
                 wandb.Image(
                     Image.fromarray(
-                        decode_tensor_to_np_img(img.unsqueeze(0), melt_batch=True),
+                        decode_tensor_to_np_img(o_img.unsqueeze(0), melt_batch=True),
                     ),
+                    caption=f"Rwd: {initial_eval_trajectories.iloc[-1, rc].item()}",
+                ),
+                wandb.Image(
+                    Image.fromarray(
+                        decode_tensor_to_np_img(c_img.unsqueeze(0), melt_batch=True),
+                    ),
+                    caption=f"Rwd: {eval_rdf.iloc[-1, rc].item()}",
                 ),
                 eval_rdf[rc][-1:].item(),
                 wandb.Image(
