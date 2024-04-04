@@ -8,7 +8,7 @@ import torch
 import wandb
 from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from ddpo.config import Task
 from ddpo.ddpo import (
