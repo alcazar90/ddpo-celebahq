@@ -384,6 +384,7 @@ for epoch in master_bar(range(num_epochs)):
         eval_mean_reward = eval_rdf.iloc[-1, :].mean().item()
         logging.info(" -> eval mean reward (%s epoch): %s", epoch + 1, eval_mean_reward)
         wandb.log({"eval_mean_reward": eval_mean_reward})
+        plt.close()
         del eval_imgs
         del eval_rdf
         del eval_logp
