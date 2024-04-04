@@ -314,7 +314,7 @@ for epoch in master_bar(range(num_epochs)):
     if eval_every_each_epoch is not None and (
         ((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0
     ):
-        logging.info("Evaluating model on a batch of images...")
+        logging.info("Evaluating model on epoch %s", epoch + 1)
         eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
             reward_model,
             scheduler,
@@ -356,6 +356,9 @@ for epoch in master_bar(range(num_epochs)):
                 ),
             )
         wandb.log({"eval_table": table})
+        eval_mean_reward = eval_rdf.iloc[-1, :].mean().item()
+        logging.info(" -> eval mean reward (%s epoch): %s", epoch + 1, eval_mean_reward)
+        wandb.log({"eval_mean_reward": eval_mean_reward})
         del eval_imgs
         del eval_rdf
         del eval_logp
