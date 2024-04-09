@@ -167,6 +167,7 @@ out_metadata = pd.DataFrame(
         "task": [task] * len(pkl_files),
         "random_seed": seeds,
         "batch_name": pkl_files,
+        "completed": [1.0] * len(pkl_files),
     }
 )
 
