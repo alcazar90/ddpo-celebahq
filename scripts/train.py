@@ -210,6 +210,14 @@ mean_rewards = []
 epoch_loss = []
 best_reward = -float("inf")  # initialize best reward
 
+if resume_from_ckpt is not None:
+    # check if the ckpt has a best reward
+    best_reward = ckpt.get("best_reward", -float("inf"))
+    logging.info(
+        "Loaded best reward from checkpoint: %s. If the best reward is -inf, it indicates an older checkpoint format without 'best_reward' saved.",
+        best_reward,
+    )
+
 for epoch in master_bar(range(num_epochs)):
     logging.info("Epoch: %s", epoch + 1)
     logging.info(
@@ -436,11 +444,12 @@ for epoch in master_bar(range(num_epochs)):
                 eval_mean_reward,
                 best_reward,
             )
-            # Save unet weights and optimizer state
+            # Save unet weights, optimizer state, and best_reward.
             torch.save(
                 {
                     "model_state_dict": image_pipe.unet.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
+                    "best_reward": eval_mean_reward,
                 },
                 f"{output_dir}/{task}-{run.name}-ckpt.pth",
             )
