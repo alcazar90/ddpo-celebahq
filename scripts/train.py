@@ -361,7 +361,7 @@ for epoch in master_bar(range(num_epochs)):
             image_pipe,
             device,
             num_samples=num_eval_samples,
-            rnd_seed=eval_random_seed,
+            random_seed=eval_random_seed,
         )
 
         # save the initial evaluation samples images (for comparison)
