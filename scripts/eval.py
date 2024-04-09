@@ -111,7 +111,7 @@ elif task == Task.INCOMPRESSIBILITY:
 # Running the sampling process, compute metrics and save the results
 # ------------------------------------------------------------------------------
 count = 0
-for seed in metadata.iloc[:, "random_seed"]:
+for seed in metadata.loc[:, "random_seed"]:
     logging.info("Starting sampling process #%s", count + 1)
 
     # check if we have reached the number of batches
