@@ -31,7 +31,7 @@ from ddpo.utils import decode_tensor_to_np_img, flush
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 # Matplotlib settings-----------------------------------------------------------
-plt.rcParams["figure.max_open_warning"] = 60  # or any number greater than 20
+plt.rcParams["figure.max_open_warning"] = 100  # or any number greater than 20
 plt.style.use("seaborn-whitegrid")
 
 
@@ -245,6 +245,9 @@ if resume_from_ckpt is not None:
 
 for epoch in master_bar(range(num_epochs)):
     logging.info("Epoch: %s", epoch + 1)
+    if wandb_logging:
+        logging.info("Close all open figures before starting the epoch...")
+        plt.close()
     logging.info(
         " -> recollecting #%s samples in %s batches",
         num_samples_per_epoch,
