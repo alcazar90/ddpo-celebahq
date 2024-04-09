@@ -2,6 +2,8 @@
 
 from enum import Enum
 
+EPS = 1e-6
+
 
 class Task(Enum):
     """The downstream tasks supported to be learn by DDPO."""

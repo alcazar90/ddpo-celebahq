@@ -1,13 +1,10 @@
 """Implementation of the DDPO algorithm."""
 
-import math
-
 import pandas as pd
 import torch
 
-from ddpo.sampling import sample_from_ddpm_celebahq
-
-EPS = 1e-6
+from ddpo.config import EPS
+from ddpo.sampling import calculate_log_probs, sample_from_ddpm_celebahq
 
 
 def standardize(x):
@@ -23,19 +20,6 @@ def standardize(x):
 
     """
     return (x - x.mean()) / (x.std() + EPS)
-
-
-def calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t, eps=EPS):
-    """Compute logs probs for prev_sample from a normal distribution with mean
-    prev_sample_mean and std std_dev_t.d.
-
-    """
-    std_dev_t = torch.clip(std_dev_t, eps)
-    return (
-        -((prev_sample.detach() - prev_sample_mean) ** 2) / (2 * std_dev_t**2)
-        - torch.log(std_dev_t)
-        - math.log(math.sqrt(2 * math.pi))
-    )
 
 
 def compute_loss(

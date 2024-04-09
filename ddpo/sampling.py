@@ -1,14 +1,29 @@
 """Sampling functions for the google/ddpm-celebahq-256 model."""
 
+import math
+
 import torch
 from tqdm.auto import tqdm
 
-from ddpo.ddpo import calculate_log_probs
+from ddpo.config import EPS
 from ddpo.utils import flush
 
 
 def progress_bar(iterable, **kwargs):
     return tqdm(iterable, **kwargs)
+
+
+def calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t, eps=EPS):
+    """Compute logs probs for prev_sample from a normal distribution with mean
+    prev_sample_mean and std std_dev_t.d.
+
+    """
+    std_dev_t = torch.clip(std_dev_t, eps)
+    return (
+        -((prev_sample.detach() - prev_sample_mean) ** 2) / (2 * std_dev_t**2)
+        - torch.log(std_dev_t)
+        - math.log(math.sqrt(2 * math.pi))
+    )
 
 
 @torch.no_grad()
