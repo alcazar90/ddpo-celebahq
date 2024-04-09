@@ -124,6 +124,7 @@ def compute_loss(
     return loss_value, ratio, pct_clipped_ratios, k3.mean().item()
 
 
+@torch.no_grad()
 def evaluation_loop(
     reward_function,
     scheduler,
