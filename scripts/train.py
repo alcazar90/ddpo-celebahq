@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 
 import matplotlib.pyplot as plt
 import torch
@@ -63,6 +64,7 @@ parser.add_argument("--run_seed", type=int, default=5633313988)
 parser.add_argument("--eval_every_each_epoch", type=int, default=None)
 parser.add_argument("--eval_rnd_seed", type=int, default=666)
 parser.add_argument("--num_eval_samples", type=int, default=2)
+parser.add_argument("--resume_from_ckpt", type=str, default=None)
 parser.add_argument(
     "--device",
     type=str,
@@ -93,6 +95,7 @@ weight_decay = args.weight_decay
 clip_advantages = args.clip_advantages
 clip_ratio = args.clip_ratio
 ddpm_ckpt = args.ddpm_ckpt
+resume_from_ckpt = args.resume_from_ckpt
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
@@ -117,6 +120,7 @@ config = {
     "clip_advantages": clip_advantages,
     "clip_ratio": clip_ratio,
     "ddpm_ckpt": ddpm_ckpt,
+    "resume_from_ckpt": resume_from_ckpt,
     "run_seed": run_seed,
     "eval_every_each_epoch": eval_every_each_epoch,
     "eval_rnd_seed": eval_random_seed,
@@ -149,8 +153,8 @@ if wandb_logging:
 
 
 # Load models-------------------------------------------------------------------
-# Load ddpm_ckpt from hugging face using diffusers library. Only allowed dppm and
-# compatible with DDIMScheduler
+# Load ddpm_ckpt from hugging face using diffusers library. Only allowed dppm
+# and compatible with DDIMScheduler
 logging.info("Set experiment seed...")
 torch.manual_seed(run_seed)
 
@@ -179,6 +183,18 @@ optimizer = torch.optim.AdamW(
     weight_decay=weight_decay,
 )  # optimizer
 
+# Resume from ckpt--------------------------------------------------------------
+if resume_from_ckpt is not None:
+    logging.info("Resuming training from ckpt: %s", resume_from_ckpt)
+    # Check if the ckpt is available
+    if not os.path.exists(resume_from_ckpt):
+        raise FileNotFoundError(f"Checkpoint file {resume_from_ckpt} not found.")
+    ckpt = torch.load(resume_from_ckpt)
+    image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+    # Add a descripting message to the wandb
+    if wandb_logging:
+        wandb.run.description = f"Resuming training from ckpt: {resume_from_ckpt}"
 
 # Training Loop-----------------------------------------------------------------
 logging.info("Initializing RL training loop...")
@@ -197,9 +213,9 @@ for epoch in master_bar(range(num_epochs)):
 
     all_step_preds, log_probs, advantages, all_rewards = [], [], [], []
 
-    # sampling `num_samples_per_epoch` images, intermediate states, and final_rewards
-    # by collecting each samples_per_batch, until complete batch_size times
-    # `num_samples_per_epoch = num_batches * batch_size`
+    # sampling `num_samples_per_epoch` images, intermediate states, and
+    # final_rewards by collecting each samples_per_batch, until complete
+    # batch_size times `num_samples_per_epoch = num_batches * batch_size`
     for _ in progress_bar(range(num_batches)):
         batch_all_step_preds, batch_log_probs = sample_from_ddpm_celebahq(
             batch_size,
@@ -234,8 +250,8 @@ for epoch in master_bar(range(num_epochs)):
         wandb.log({"min_reward": all_rewards.min().item()})
         wandb.log({"max_reward": all_rewards.max().item()})
         wandb.log({"reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy())})
-        # Nota: sobre las imagenes si suben con memoria ram, no sé si aporta mucho
-        # guardar todas
+        # Nota: sobre las imagenes si suben con memoria ram, no sé si aporta
+        # mucho guardar todas
         wandb.log(
             {
                 "img batch": [
