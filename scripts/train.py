@@ -205,7 +205,6 @@ if resume_from_ckpt is not None:
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from ckpt: {resume_from_ckpt}"
-        wandb.run.save()
         # TODO: Before loading the ckpt, obtain the eval samples' trajectories
         # from the original model and their corresponding reward metric
         # eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
