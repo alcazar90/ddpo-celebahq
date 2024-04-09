@@ -69,7 +69,7 @@ parser.add_argument(
     "--manual_best_reward",
     type=float,
     default=None,
-    description="If you want to manually set the best reward. Useful for resuming training from a ckpt without the best reward (old version format).",
+    help="If you want to manually set the best reward. Useful for resuming training from a ckpt without the best reward (old version format).",
 )
 parser.add_argument(
     "--device",
