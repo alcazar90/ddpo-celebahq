@@ -66,6 +66,12 @@ parser.add_argument("--eval_rnd_seed", type=int, default=666)
 parser.add_argument("--num_eval_samples", type=int, default=2)
 parser.add_argument("--resume_from_ckpt", type=str, default=None)
 parser.add_argument(
+    "--manual_best_reward",
+    type=float,
+    default=None,
+    description="If you want to manually set the best reward. Useful for resuming training from a ckpt without the best reward (old version format).",
+)
+parser.add_argument(
     "--device",
     type=str,
     default="cuda" if torch.cuda.is_available() else "cpu",
@@ -96,6 +102,7 @@ clip_advantages = args.clip_advantages
 clip_ratio = args.clip_ratio
 ddpm_ckpt = args.ddpm_ckpt
 resume_from_ckpt = args.resume_from_ckpt
+manual_best_reward = args.manual_best_reward
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
@@ -194,14 +201,23 @@ optimizer = torch.optim.AdamW(
 
 # Resume from ckpt--------------------------------------------------------------
 if resume_from_ckpt is not None:
-    logging.info("Resuming training from ckpt: %s", resume_from_ckpt)
-    ckpt = torch.load(resume_from_ckpt)
-    image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
-    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from ckpt: {resume_from_ckpt}"
         wandb.run.save()
+        # TODO: Before loading the ckpt, obtain the eval samples' trajectories
+        # from the original model and their corresponding reward metric
+        # eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
+        #     reward_model,
+        #     scheduler,
+        #     image_pipe,
+        #     device,
+        #     num_samples=num_eval_samples,
+        #     random_seed=eval_random_seed,
+        # )
+    ckpt = torch.load(resume_from_ckpt)
+    image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
 # Training Loop-----------------------------------------------------------------
 logging.info("Initializing RL training loop...")
@@ -217,6 +233,15 @@ if resume_from_ckpt is not None:
         "Loaded best reward from checkpoint: %s. If the best reward is -inf, it indicates an older checkpoint format without 'best_reward' saved.",
         best_reward,
     )
+    # if the manual_best_reward is set, overwrite the best reward. Useful for
+    # resuming training from a ckpt without the best reward (old version
+    # format, e.g. "Task.LAION-youthful-frost-64-ckpt.pth").
+    if manual_best_reward is not None:
+        best_reward = manual_best_reward
+        logging.info(
+            "Overwriting the best reward with the manual value: %s",
+            best_reward,
+        )
 
 for epoch in master_bar(range(num_epochs)):
     logging.info("Epoch: %s", epoch + 1)
@@ -357,6 +382,9 @@ for epoch in master_bar(range(num_epochs)):
     epoch_loss.append(inner_loop_losses)
 
     # evaluation loop each X epochs, and at the start and end of training
+    # TODO: encapsulate this in a function to make the code more readable.
+    # Add an option for create a table in resume ckpt mode to compare the
+    # initial, ckpt, and current reward trajectories as well as images.
     if (
         eval_every_each_epoch is not None
         and (((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0)
