@@ -200,7 +200,8 @@ if resume_from_ckpt is not None:
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
     # Add a descripting message to the wandb
     if wandb_logging:
-        wandb.run.description = f"Resuming training from ckpt: {resume_from_ckpt}"
+        wandb.run.notes = f"Resuming training from ckpt: {resume_from_ckpt}"
+        wandb.run.save()
 
 # Training Loop-----------------------------------------------------------------
 logging.info("Initializing RL training loop...")
