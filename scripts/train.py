@@ -106,6 +106,15 @@ eval_random_seed = args.eval_rnd_seed
 num_eval_samples = args.num_eval_samples
 output_dir = args.output_dir
 
+# Verify paths and directories--------------------------------------------------
+if not os.path.exists(output_dir):
+    raise FileNotFoundError(f"Output directory {output_dir} not found.")
+
+if resume_from_ckpt is not None:
+    # Check if the ckpt is available
+    if not os.path.exists(resume_from_ckpt):
+        raise FileNotFoundError(f"Checkpoint file {resume_from_ckpt} not found.")
+
 # Create config for logging-----------------------------------------------------
 config = {
     "task": task,
@@ -186,9 +195,6 @@ optimizer = torch.optim.AdamW(
 # Resume from ckpt--------------------------------------------------------------
 if resume_from_ckpt is not None:
     logging.info("Resuming training from ckpt: %s", resume_from_ckpt)
-    # Check if the ckpt is available
-    if not os.path.exists(resume_from_ckpt):
-        raise FileNotFoundError(f"Checkpoint file {resume_from_ckpt} not found.")
     ckpt = torch.load(resume_from_ckpt)
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
