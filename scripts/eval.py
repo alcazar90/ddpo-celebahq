@@ -111,6 +111,7 @@ elif task == Task.INCOMPRESSIBILITY:
 # Running the sampling process, compute metrics and save the results
 # ------------------------------------------------------------------------------
 count = 0
+seeds = []
 for seed in metadata.loc[:, "random_seed"]:
     logging.info("Starting sampling process #%s", count + 1)
 
@@ -121,6 +122,7 @@ for seed in metadata.loc[:, "random_seed"]:
 
     # get one random seed
     rnd_seed = seed
+    seeds.append(rnd_seed)
 
     # sample # num_saples from ddpm-celebahq-256 with current rnd_seed
     logging.info(
@@ -150,3 +152,24 @@ for seed in metadata.loc[:, "random_seed"]:
         pickle.dump(data, f)
     logging.info("Succesfully saved!")
     count += 1
+
+logging.info("Create a metadata csv with the current status of the folder...")
+# Create metadata file for the output folder
+# ------------------------------------------------------------------------------
+# Read files in the output folder and filter the files for .pkl files
+all_files = os.listdir(output_path)
+pkl_files = [file for file in all_files if file.endswith(".pkl")]
+
+# Create a dataframe with the random seeds and the batch name
+out_metadata = pd.DataFrame(
+    {
+        "id": range(len(pkl_files)),
+        "task": [task] * len(pkl_files),
+        "random_seed": seeds,
+        "batch_name": pkl_files,
+    }
+)
+
+# save csv file in the output folder
+out_metadata.to_csv(os.path.join(output_path, "metadata.csv"), index=False)
+logging.info("Metadata file for output created and saved successfully!")
