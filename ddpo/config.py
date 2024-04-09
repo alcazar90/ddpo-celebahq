@@ -2,7 +2,8 @@
 
 from enum import Enum
 
-EPS = 1e-6
+# Constants
+EPS = 1e-6  # epsilon for numerical stability (avoid division by zero)
 
 
 class Task(Enum):
