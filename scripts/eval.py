@@ -128,7 +128,7 @@ for seed in metadata.loc[:, "random_seed"]:
     )
 
     data = sample_data_from_celebahq(
-        num_samples, scheduler, image_pipe, reward_model, device, random_seed=rnd_seed
+        num_samples, scheduler, image_pipe, device, random_seed=rnd_seed
     )
     # compute rewards
     logging.info("Computing rewards")
