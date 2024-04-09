@@ -137,6 +137,7 @@ config = {
     "clip_ratio": clip_ratio,
     "ddpm_ckpt": ddpm_ckpt,
     "resume_from_ckpt": resume_from_ckpt,
+    "manual_best_reward": manual_best_reward,
     "run_seed": run_seed,
     "eval_every_each_epoch": eval_every_each_epoch,
     "eval_rnd_seed": eval_random_seed,
