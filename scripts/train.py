@@ -14,7 +14,6 @@ from ddpo.config import Task
 from ddpo.ddpo import (
     compute_loss,
     evaluation_loop,
-    sample_from_ddpm_celebahq,
     standardize,
 )
 from ddpo.rewards import (
@@ -24,6 +23,7 @@ from ddpo.rewards import (
     over50_old,
     under30_old,
 )
+from ddpo.sampling import sample_from_ddpm_celebahq
 from ddpo.utils import decode_tensor_to_np_img, flush
 
 # Set up logging----------------------------------------------------------------
