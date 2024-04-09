@@ -4,14 +4,8 @@ import math
 
 import pandas as pd
 import torch
-from tqdm import tqdm
 
-from ddpo.utils import flush
-
-
-def progress_bar(iterable, **kwargs):
-    return tqdm(iterable, **kwargs)
-
+from ddpo.sampling import sample_from_ddpm_celebahq
 
 EPS = 1e-6
 
@@ -44,96 +38,6 @@ def calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t, eps=EPS):
     )
 
 
-@torch.no_grad()
-def sample_from_ddpm_celebahq(
-    num_samples,  # noqa: ANN001
-    scheduler,
-    image_pipe,
-    device,
-    eta=1,
-    random_seed=None,
-):
-    """Sample a batch of images from the google/ddpm-celebahq-256 model using a specified scheduler, image pipeline, reward model, and device.
-
-    Reference of diffuser sample loop: https://huggingface.co/blog/stable_diffusion
-
-    Args:
-    ----
-    num_samples (int): The number of samples to generate.
-    scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
-    image_pipe (ImagePipeline): The image pipeline object used for processing images.
-    device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
-    random_seed (int, optional): The random seed for reproducibility. Defaults to None.
-
-    Returns:
-    -------
-    tensor: A tensor containing the trajectories of the entire batach (T, B, C, H, w).
-    tensor: A tensor containing the log probabilities of the trajectories (T, B).
-
-    """
-    if random_seed:
-        torch.manual_seed(random_seed)
-
-    num_inference_steps = scheduler.num_inference_steps
-
-    # initialize a batch of random noise
-    xt = torch.randn(num_samples, 3, 256, 256).to(device)  # (B, C, H, W)
-
-    # save initial state x_T and intermediate steps, saave log_probs for the trajectory
-    trajectory, log_probs = [xt], []
-
-    for _, t in enumerate(progress_bar(scheduler.timesteps)):
-        # [S] scale input based on the timestep
-        model_input = scheduler.scale_model_input(xt, timestep=t)
-
-        # [S] get the noise prediction (unet predicts noise residual)
-        noise_pred = image_pipe.unet(model_input, t).sample
-
-        # [S] using the prediction noise we can predict the denoised image representation
-        # compute the "previous" noisy sample mean
-        scheduler_output = scheduler.step(noise_pred, t, xt, eta, variance_noise=0)
-        prev_sample_mean = (
-            scheduler_output.prev_sample
-        )  # this is the mean and not full sample since variance is 0
-
-        # [S] Computa la varianza entre los do timesteps actual y anterior,
-        # se debe considerar los saltos entree timesteps de entrenamiento e inferencia.
-        t_1 = t - scheduler.config.num_train_timesteps // num_inference_steps
-        variance = scheduler._get_variance(t, t_1)
-        std_dev_t = eta * variance ** (0.5)
-
-        # [S] generamos nuevas muestras (re-parametrization trick)
-        prev_sample = (
-            prev_sample_mean + torch.randn_like(prev_sample_mean) * std_dev_t
-        )  # get full sample by adding noise
-
-        # [S] compute the log probs of the new sample
-        log_probs.append(
-            calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t).mean(
-                dim=tuple(range(1, prev_sample_mean.ndim)),
-            ),
-        )
-
-        trajectory.append(prev_sample)
-        xt = prev_sample
-
-    # now we will release the VRAM memory deleting the variable bounded to the VRAM
-    # and use flush()
-    del xt
-    del model_input
-    del noise_pred
-    del scheduler_output
-    del prev_sample_mean
-    del prev_sample
-    del variance
-    del std_dev_t
-    del num_inference_steps
-    flush()
-
-    # The dimensions of the tensor are: (T+1, B, C, H, W), (T, B), (B, 1)
-    return torch.stack(trajectory), torch.stack(log_probs)
-
-
 def compute_loss(
     x_t,
     original_log_probs,
@@ -148,20 +52,21 @@ def compute_loss(
     """Compute DDPO_is loss for a batch of samples.
 
     Args:
-    ----
-      x_t (torch.Tensor): The input samples for the current timestep.
-      original_log_probs (torch.Tensor): The log probabilities of the original policy.
-      advantages (torch.Tensor): The advantages for each sample.
-      clip_advantages (float): The maximum value to clip the advantages.
-      clip_ratio (float): The maximum value to clip the ratio.
-      image_pipe (ImagePipe): The image processing pipeline.
-      scheduler (Scheduler): The scheduler for the DDPO algorithm.
-      device (torch.device): The device to perform computations on.
-      eta (float, optional): The scaling factor for the standard deviation. Defaults to 1.
+        x_t (torch.Tensor): The input samples for the current timestep.
+        original_log_probs (torch.Tensor): The log probabilities of the original policy.
+        advantages (torch.Tensor): The advantages for each sample.
+        clip_advantages (float): The maximum value to clip the advantages.
+        clip_ratio (float): The maximum value to clip the ratio.
+        image_pipe (ImagePipe): The image processing pipeline.
+        scheduler (Scheduler): The scheduler for the DDPO algorithm.
+        device (torch.device): The device to perform computations on.
+        eta (float, optional): The scaling factor for the standard deviation. Defaults to 1.
 
     Returns:
-    -------
-      float: The computed loss value.
+        float: The computed loss value.
+        torch.Tensor: The ratio of probabilities between the current policy and the original policy.
+        float: The percentage of clipped ratios.
+        float: The mean KL divergence between the current policy and the original policy.
 
     """
     unet = image_pipe.unet.to(device)
@@ -241,10 +146,27 @@ def evaluation_loop(
     image_pipe,
     device,
     num_samples: int = 4,
-    rnd_seed: int = 666,
+    random_seed: int = 666,
     previous_logp=None,
 ):
-    """Given a random seed compute and return metrics to evaluate on same same subset the model"""
+    """Given a random seed compute and return metrics to evaluate on same same subset the model
+
+    Args:
+        reward_function: The reward function used to compute rewards over the trajectory.
+        scheduler: The scheduler used for sampling from the model.
+        image_pipe: The image pipeline used for processing images.
+        device: The device (CPU or GPU) to perform computations on.
+        num_samples (optional): The number of samples to generate from the model. Defaults to 4.
+        random_seed (optional): The random seed to use for reproducibility. Defaults to 666.
+        previous_logp (optional): The log probabilities of the previous sample set. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing the following elements:
+            - The last trajectory sample.
+            - A DataFrame containing the rewards for each sample at each timestep.
+            - The log probabilities of the current sample set.
+            - The KL divergence between the current and previous sample sets.
+    """
     # (1) Obtain sample and latents
     with torch.random.fork_rng():
         trajectory, logp = sample_from_ddpm_celebahq(
@@ -252,7 +174,7 @@ def evaluation_loop(
             scheduler=scheduler,
             image_pipe=image_pipe,
             device=device,
-            random_seed=rnd_seed,
+            random_seed=random_seed,
         )
 
     # (2) Compute reward over trajectory
