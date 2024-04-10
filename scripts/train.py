@@ -206,10 +206,6 @@ optimizer = torch.optim.AdamW(
     weight_decay=weight_decay,
 )  # optimizer
 
-# performance optimization
-image_pipe.unet.enable_gradient_checkpointing()
-
-
 # Resume from ckpt--------------------------------------------------------------
 if resume_from_ckpt is not None:
     # Add a descripting message to the wandb
