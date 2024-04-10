@@ -153,6 +153,10 @@ plt.rcParams["figure.max_open_warning"] = (
 )  # or any number greater than 20
 plt.style.use("seaborn-whitegrid")
 
+# Pytorch settings--------------------------------------------------------------
+# tf32, performance optimization
+torch.backends.cuda.matmul.allow_tf32 = True
+
 # Initialize wandb--------------------------------------------------------------
 if wandb_logging:
     if task == Task.LAION:
@@ -201,6 +205,10 @@ optimizer = torch.optim.AdamW(
     lr=lr,
     weight_decay=weight_decay,
 )  # optimizer
+
+# performance optimization
+image_pipe.unet.enable_gradient_checkpointing()
+
 
 # Resume from ckpt--------------------------------------------------------------
 if resume_from_ckpt is not None:
@@ -358,7 +366,7 @@ for epoch in master_bar(range(num_epochs)):
                 wandb.log(
                     {
                         "loss": loss,
-                        "pct_clipped_ratios": pct_clipped_ratios,
+                        "": pct_clipped_ratios,
                         "prob_ratio": wandb.Histogram(
                             prob_ratio.detach().cpu().numpy(),
                         ),
@@ -380,9 +388,9 @@ for epoch in master_bar(range(num_epochs)):
             inner_epoch + 1,
         )
 
-    if wandb_logging:
-        wandb.log({"reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy())})
-        wandb.log({"mean_reward": mean_rewards[-1]})
+    # if wandb_logging:
+    #     wandb.log({"reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy())})
+    #     wandb.log({"mean_reward": mean_rewards[-1]})
 
     epoch_loss.append(inner_loop_losses)
 
