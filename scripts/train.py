@@ -484,15 +484,20 @@ for epoch in master_bar(range(num_epochs)):
                 best_reward,
             )
             # Save unet weights, optimizer state, and best_reward.
+            ckpt_path = f"{output_dir}/{task}-{run.name}-ckpt.pth"
             torch.save(
                 {
                     "model_state_dict": image_pipe.unet.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
                     "best_reward": eval_mean_reward,
                 },
-                f"{output_dir}/{task}-{run.name}-ckpt.pth",
+                ckpt_path,
             )
             best_reward = eval_mean_reward
+            # Create a new artifact (or overwrite the existing one)
+            artifact = wandb.Artifact(f"{task}-{run.name}", type="model")
+            artifact.add_file(ckpt_path)
+            run.log_artifact(artifact)
             logging.info("End evaluation loop")
     # # ~~ end of evaluation ~~
 
