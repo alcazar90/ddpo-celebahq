@@ -91,7 +91,7 @@ def jpeg_incompressibility():
         for image, buffer in zip(images, buffers):
             image.save(buffer, format="JPEG", quality=95)
         sizes = [buffer.tell() / 1000 for buffer in buffers]
-        return torch.tensor(np.array(sizes))
+        return torch.tensor(np.array(sizes)).cuda()
 
     return _fn
 
