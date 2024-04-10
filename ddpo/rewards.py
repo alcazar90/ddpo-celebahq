@@ -101,7 +101,7 @@ def jpeg_compressibility():
     jpeg_fn = jpeg_incompressibility()
 
     def _fn(images, metadata=None):
-        rew, meta = jpeg_fn(images, metadata)
+        rew = jpeg_fn(images, metadata)
         return -rew
 
     return _fn
