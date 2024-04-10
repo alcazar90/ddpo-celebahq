@@ -425,6 +425,7 @@ for epoch in master_bar(range(num_epochs)):
                 "current_samples",
                 "current_final_reward",
                 "original_final_reward",
+                "diff_reward",
                 "reward_trajectory",
             ],
         )
@@ -462,6 +463,7 @@ for epoch in master_bar(range(num_epochs)):
                 ),
                 eval_rdf[rc][-1:].item(),
                 initial_eval_trajectories[rc][-1:].item(),
+                eval_rdf[rc][-1:].item() - initial_eval_trajectories[rc][-1:].item(),
                 wandb.Image(
                     plt,
                 ),
