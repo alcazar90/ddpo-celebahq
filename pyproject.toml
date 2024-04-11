@@ -1,5 +1,5 @@
 [project]
-name = "DDPO-celebahq-256"
+name = "ddpo-celebahq"
 version = "0.0.1"
 authors = [
   { name="Cristóbal Alcázar", email="cristobal.alcazar@ug.uchile.cl" },
