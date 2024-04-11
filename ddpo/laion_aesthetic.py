@@ -47,7 +47,10 @@ class AestheticRewardModel(nn.Module):
         self.clip_model, self.preprocess = clip.load(model_checkpoint, device=device)
         self.aesthetic_model = self._initialize_aesthetic_model(cache)
 
-    def _initialize_aesthetic_model(self, cache: str = ".") -> nn.Module:  # noqa: ANN101
+    def _initialize_aesthetic_model(
+        self,
+        cache: str = ".",
+    ) -> nn.Module:  # noqa: ANN101
         """Initialize the aesthetic model MLP and load pre-trained weights.
 
         Args:
@@ -103,7 +106,12 @@ class AestheticRewardModel(nn.Module):
         mlp.load_state_dict(weights)
         return mlp.to(self.device)
 
-    def _normalize(self, a: np.ndarray, axis: int = -1, order: int = 2) -> np.ndarray:  # noqa: ANN101
+    def _normalize(
+        self,
+        a: np.ndarray,
+        axis: int = -1,
+        order: int = 2,
+    ) -> np.ndarray:  # noqa: ANN101
         """Normalize the input array.
 
         Args:
@@ -121,7 +129,10 @@ class AestheticRewardModel(nn.Module):
         l2[l2 == 0] = 1
         return a / np.expand_dims(l2, axis)
 
-    def _from_tensor_to_numpy(self, x: torch.Tensor) -> np.ndarray:  # noqa: ANN101
+    def _from_tensor_to_numpy(
+        self,
+        x: torch.Tensor,
+    ) -> np.ndarray:  # noqa: ANN101
         """Convert a PyTorch tensor RGB img to a numpy array representation.
 
         Args:
