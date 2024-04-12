@@ -356,7 +356,7 @@ for epoch in master_bar(range(num_epochs)):
                 wandb.log(
                     {
                         "loss": loss,
-                        "": pct_clipped_ratios,
+                        "pct_clipped_ratios": pct_clipped_ratios,
                         "prob_ratio": wandb.Histogram(
                             prob_ratio.detach().cpu().numpy(),
                         ),
