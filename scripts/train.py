@@ -45,7 +45,13 @@ def master_bar(iterable, **kwargs):
 parser = argparse.ArgumentParser(description="DDPO")
 
 parser.add_argument("--wandb_logging", type=bool, default=True)
-parser.add_argument("--task", type=Task, choices=list(Task), default=Task.LAION)
+parser.add_argument(
+    "--task",
+    type=Task,
+    choices=list(Task),
+    default=Task.LAION,
+    help="The downstream task can be one of the following: aesthetic score, under30 years old, over50 years old, jpeg compressibility, jpeg incompressibility.",
+)
 parser.add_argument("--num_samples_per_epoch", type=int, default=10)
 parser.add_argument("--num_epochs", type=int, default=5)
 parser.add_argument("--num_inner_epochs", type=int, default=1)
