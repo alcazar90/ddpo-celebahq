@@ -221,6 +221,7 @@ optimizer = torch.optim.AdamW(
 
 # Resume from ckpt--------------------------------------------------------------
 if resume_from_ckpt is not None:
+    logging.info("Resume training from ckpt path: %s", resume_from_ckpt)
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from ckpt: {resume_from_ckpt}"
@@ -239,6 +240,7 @@ if resume_from_ckpt is not None:
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
 if resume_from_wandb is not None:
+    logging.info("Resume training from W&B artifact: %s", resume_from_wandb)
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from W&B artifact: {resume_from_wandb}"
