@@ -240,12 +240,21 @@ if resume_from_ckpt is not None:
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
 if resume_from_wandb is not None:
-    logging.info("Resume training from W&B artifact: %s", resume_from_wandb)
+    logging.info(
+        "Resume training from W&B artifact: %s, will be download at path %s",
+        resume_from_wandb,
+        output_dir,
+    )
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from W&B artifact: {resume_from_wandb}"
     artifact = run.use_artifact(resume_from_wandb)
     ckpt_path = artifact.download(output_dir)
+    ckpt_path = (
+        os.path.join(output_dir, os.path.basename(resume_from_wandb)).split(":")[0]
+        + "-ckpt.pth"
+    )
+    logging.info(" -> ckpt loading from: %s", ckpt_path)
     ckpt = torch.load(ckpt_path)
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
