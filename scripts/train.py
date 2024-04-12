@@ -487,6 +487,7 @@ for epoch in master_bar(range(num_epochs)):
                 },
                 ckpt_path,
             )
+            logging.info(" -> ckpt saved at: %s", ckpt_path)
             best_reward = eval_mean_reward
             # Create a new artifact (or overwrite the existing one)
             artifact = wandb.Artifact(f"{task}-{run.name}", type="model")
