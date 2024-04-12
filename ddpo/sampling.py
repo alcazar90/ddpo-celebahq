@@ -13,7 +13,12 @@ def progress_bar(iterable, **kwargs):
     return tqdm(iterable, **kwargs)
 
 
-def calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t, eps=EPS):
+def calculate_log_probs(
+    prev_sample,
+    prev_sample_mean,
+    std_dev_t,
+    eps=EPS,
+):
     """Compute logs probs for prev_sample from a normal distribution with mean
     prev_sample_mean and std std_dev_t.d.
 
@@ -42,16 +47,16 @@ def sample_from_ddpm_celebahq(
 
     Args:
     ----
-    num_samples (int): The number of samples to generate.
-    scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
-    image_pipe (ImagePipeline): The image pipeline object used for processing images.
-    device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
-    random_seed (int, optional): The random seed for reproducibility. Defaults to None.
+        num_samples (int): The number of samples to generate.
+        scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
+        image_pipe (ImagePipeline): The image pipeline object used for processing images.
+        device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
+        random_seed (int, optional): The random seed for reproducibility. Defaults to None.
 
     Returns:
     -------
-    tensor: A tensor containing the trajectories of the entire batach (T, B, C, H, W).
-    tensor: A tensor containing the log probabilities of the trajectories (T, B).
+        tensor: A tensor containing the trajectories of the entire batach (T, B, C, H, W).
+        tensor: A tensor containing the log probabilities of the trajectories (T, B).
 
     """
     if random_seed:
@@ -117,7 +122,11 @@ def sample_from_ddpm_celebahq(
 
 @torch.no_grad()
 def sample_data_from_celebahq(
-    num_samples, scheduler, image_pipe, device, random_seed=None
+    num_samples,
+    scheduler,
+    image_pipe,
+    device,
+    random_seed=None,
 ):
     """Sample a batch of trajectories from the google/ddpm-celebahq-256 model using a specified scheduler, image pipeline, reward model, and device.
     Save only a summary of each trajectories and their corresponding seeds.
@@ -126,15 +135,15 @@ def sample_data_from_celebahq(
 
     Args:
     ----
-    num_samples (int): The number of samples to generate.
-    scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
-    image_pipe (ImagePipeline): The image pipeline object used for processing images.
-    device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
-    random_seed (int, optional): The random seed for reproducibility. Defaults to None.
+        num_samples (int): The number of samples to generate.
+        scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
+        image_pipe (ImagePipeline): The image pipeline object used for processing images.
+        device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
+        random_seed (int, optional): The random seed for reproducibility. Defaults to None.
 
     Returns:
     -------
-    dict: Containing in "seed" the rnd_state used for generate samples' trajectories, and in "trajectory", a tensor containing the trajectories of the entire batch (T, B, C, H, W).
+        dict: Containing in "seed" the rnd_state used for generate samples' trajectories, and in "trajectory", a tensor containing the trajectories of the entire batch (T, B, C, H, W).
     """
     obs = {}
 
