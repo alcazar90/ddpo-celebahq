@@ -60,6 +60,12 @@ parser.add_argument("--run_seed", type=int, default=5633313988)
 parser.add_argument("--eval_every_each_epoch", type=int, default=None)
 parser.add_argument("--eval_rnd_seed", type=int, default=666)
 parser.add_argument("--num_eval_samples", type=int, default=2)
+parser.add_argument(
+    "--resume_from_wandb",
+    type=str,
+    default=None,
+    help="Given a W&B artifact ckpt name, download and resume training from it.",
+)
 parser.add_argument("--resume_from_ckpt", type=str, default=None)
 parser.add_argument(
     "--manual_best_reward",
@@ -91,6 +97,7 @@ clip_ratio = args.clip_ratio
 ddpm_ckpt = args.ddpm_ckpt
 resume_from_ckpt = args.resume_from_ckpt
 manual_best_reward = args.manual_best_reward
+resume_from_wandb = args.resume_from_wandb
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
@@ -109,6 +116,12 @@ if resume_from_ckpt is not None:
     # Check if the ckpt is available
     if not os.path.exists(resume_from_ckpt):
         raise FileNotFoundError(f"Checkpoint file {resume_from_ckpt} not found.")
+
+# Check if resume_from_ckpt and resume_from_wandb are not both None, throw an error
+if resume_from_ckpt is not None and resume_from_wandb is not None:
+    raise ValueError(
+        "You must provide only a single resume mode for load a model checkpoint file; Providing the ckpt path (resume_from_ckpt) or a W&B artifact name for download (resume_from_wandb) to resume training."
+    )
 
 # Create config for logging-----------------------------------------------------
 config = {
@@ -216,6 +229,16 @@ if resume_from_ckpt is not None:
         #     random_seed=eval_random_seed,
         # )
     ckpt = torch.load(resume_from_ckpt)
+    image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+
+if resume_from_wandb is not None:
+    # Add a descripting message to the wandb
+    if wandb_logging:
+        wandb.run.notes = f"Resuming training from W&B artifact: {resume_from_wandb}"
+    artifact = run.use_artifact(resume_from_wandb)
+    ckpt_path = artifact.download(output_dir)
+    ckpt = torch.load(ckpt_path)
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
