@@ -225,17 +225,7 @@ if resume_from_ckpt is not None:
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from ckpt: {resume_from_ckpt}"
-        # TODO: Before loading the ckpt, obtain the eval samples' trajectories
-        # from the original model and their corresponding reward metric
-        # eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
-        #     reward_model,
-        #     scheduler,
-        #     image_pipe,
-        #     device,
-        #     num_samples=num_eval_samples,
-        #     random_seed=eval_random_seed,
-        # )
-    ckpt = torch.load(resume_from_ckpt)
+    ckpt = torch.load(resume_from_ckpt, map_location=torch.device(device))
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
@@ -255,7 +245,7 @@ if resume_from_wandb is not None:
         + "-ckpt.pth"
     )
     logging.info(" -> ckpt loading from: %s", ckpt_path)
-    ckpt = torch.load(ckpt_path)
+    ckpt = torch.load(ckpt_path, map_location=torch.device(device))
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
