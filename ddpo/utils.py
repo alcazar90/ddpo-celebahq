@@ -14,7 +14,10 @@ def flush() -> None:
     torch.cuda.empty_cache()
 
 
-def decode_tensor_to_img(x: torch.Tensor, num_rows_per_grid: int = 5) -> None:
+def decode_tensor_to_img(
+    x: torch.Tensor,
+    num_rows_per_grid: int = 5,
+) -> None:
     """Decode a tensor into a plt.imshow."""
     grid = torchvision.utils.make_grid(x, nrow=num_rows_per_grid).permute(1, 2, 0)
     plt.imshow(grid.cpu().clip(-1, 1) * 0.5 + 0.5)
