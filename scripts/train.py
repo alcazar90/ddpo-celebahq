@@ -67,18 +67,10 @@ parser.add_argument(
     default=None,
     help="If you want to manually set the best reward. Useful for resuming training from a ckpt without the best reward (old version format).",
 )
+parser.add_argument("--device", type=str, default="cuda")
 parser.add_argument(
-    "--device",
-    type=str,
-    default="cuda" if torch.cuda.is_available() else "cpu",
+    "--output_dir", type=str, default="..", help="output directory to save model ckpt"
 )
-parser.add_argument(
-    "--output_dir",
-    type=str,
-    default="..",
-    help="output directory to save model ckpt",
-)
-
 # threshold and punishment prameter for under30_old and over50_old rewards
 parser.add_argument("--threshold", type=float, default=0.6)
 parser.add_argument("--punishment", type=float, default=-1.0)
@@ -189,15 +181,17 @@ scheduler.set_timesteps(num_inference_steps=num_inference_steps, device=device)
 
 # Download and initialize the reward model
 if task == Task.LAION:
-    reward_model = aesthetic_score()
+    reward_model = aesthetic_score(device=device)
 elif task == Task.UNDER30:
-    reward_model = under30_old(threshold=threshold, punishment=punishment)
+    reward_model = under30_old(
+        threshold=threshold, punishment=punishment, device=device
+    )
 elif task == Task.OVER50:
-    reward_model = over50_old(threshold=threshold, punishment=punishment)
+    reward_model = over50_old(threshold=threshold, punishment=punishment, device=device)
 elif task == Task.COMPRESSIBILITY:
-    reward_model = jpeg_compressibility()
+    reward_model = jpeg_compressibility(device=device)
 elif task == Task.INCOMPRESSIBILITY:
-    reward_model = jpeg_incompressibility()
+    reward_model = jpeg_incompressibility(device=device)
 
 # Optimizer
 optimizer = torch.optim.AdamW(
@@ -348,7 +342,7 @@ for epoch in master_bar(range(num_epochs)):
                 clip_ratio,
                 image_pipe,
                 scheduler,
-                "cuda",
+                device,
             )  # loss.backward happens inside
 
             torch.nn.utils.clip_grad_norm_(
