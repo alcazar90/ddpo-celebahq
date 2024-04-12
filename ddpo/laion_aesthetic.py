@@ -192,7 +192,7 @@ class AestheticRewardModel(nn.Module):
                         Image.fromarray(self._from_tensor_to_numpy(images[0])),
                     )
                     .unsqueeze(0)
-                    .cuda()
+                    .to(self.device)
                 )
                 image_features = self.clip_model.encode_image(clip_input)
                 im_emb_arr = self._normalize(image_features.cpu().detach().numpy())
@@ -202,7 +202,7 @@ class AestheticRewardModel(nn.Module):
             clip_input = [
                 self.preprocess(
                     Image.fromarray(self._from_tensor_to_numpy(img)),
-                ).cuda()
+                ).to(self.device)
                 for img in images
             ]
             clip_input = torch.stack(clip_input)
