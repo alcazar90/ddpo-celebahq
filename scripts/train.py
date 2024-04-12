@@ -69,7 +69,7 @@ parser.add_argument(
 )
 parser.add_argument("--device", type=str, default="cuda")
 parser.add_argument(
-    "--output_dir", type=str, default="..", help="output directory to save model ckpt"
+    "--output_dir", type=str, default=".", help="output directory to save model ckpt"
 )
 # threshold and punishment prameter for under30_old and over50_old rewards
 parser.add_argument("--threshold", type=float, default=0.6)
