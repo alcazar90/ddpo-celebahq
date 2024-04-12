@@ -12,11 +12,11 @@ def standardize(x):
 
     Args:
     ----
-    x (array-like): The input array to be standardized.
+        x (array-like): The input array to be standardized.
 
     Returns:
     -------
-    array-like: The standardized array.
+        array-like: The standardized array.
 
     """
     return (x - x.mean()) / (x.std() + EPS)
@@ -30,7 +30,7 @@ def compute_loss(
     clip_ratio,
     image_pipe,
     scheduler,
-    device,
+    device="cuda",
     eta=1,
 ):
     """Compute DDPO_is loss for a batch of samples.
@@ -129,7 +129,7 @@ def evaluation_loop(
     reward_function,
     scheduler,
     image_pipe,
-    device,
+    device="cuda",
     num_samples: int = 4,
     random_seed: int = 666,
     previous_logp=None,
@@ -168,14 +168,12 @@ def evaluation_loop(
     # corresponding rewards for the given sample at timestep t
     r_df = pd.DataFrame(torch.vstack(r).detach().cpu().numpy())
 
-    # (3) Compute the loss
-
-    # (4) Compute the KL with the previous sample set
+    # (3) Compute the KL with the previous sample set
     k = None
     if previous_logp is not None:
         logr = (previous_logp - logp).sum(axis=0)
         k = (logr.exp() - 1) - logr
         k = k.mean().item()
 
-    # (5) Return everything...
+    # (4) Return everything...
     return trajectory[-1], r_df, logp.detach().cpu(), k
