@@ -90,6 +90,7 @@ image_pipe.to(device)
 # Load ckpt and set the model to eval mode
 ckpt = torch.load(ckpt_path)
 image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+image_pipe.unet.eval()
 
 # Create new scheduler and set num inference steps
 scheduler = DDIMScheduler.from_pretrained("google/ddpm-celebahq-256")
@@ -154,6 +155,7 @@ for seed in metadata.loc[:, "random_seed"]:
     count += 1
 
 logging.info("Create a metadata csv with the current status of the folder...")
+
 # Create metadata file for the output folder
 # ------------------------------------------------------------------------------
 # Read files in the output folder and filter the files for .pkl files
