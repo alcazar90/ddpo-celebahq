@@ -9,6 +9,7 @@ import torch
 import wandb
 from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
+from tqdm.auto import tqdm
 
 from ddpo.config import Task
 from ddpo.ddpo import evaluation_loop
@@ -70,7 +71,7 @@ elif task == Task.INCOMPRESSIBILITY.name:
     reward_fn = jpeg_incompressibility(device=device)
 
 # Iterate and download ckpt versions...
-for version in artifacts:
+for version in tqdm(artifacts):
     ckpt_version = version.version
     version_name = version.name
     # Download the version ckpt
