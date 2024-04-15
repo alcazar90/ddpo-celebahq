@@ -142,7 +142,6 @@ for version in tqdm(artifacts):
     ckpt_version = version.version
     version_name = version.name
     # Download the version ckpt
-    # artifact_version = api.artifact(version)
     download_dir = version.download(output_dir)  # download in the output_dir directory
     logging.info("Downloaded %s successfully", version_name)
     logging.info("Initialized the model with %s", version_name)
@@ -209,7 +208,6 @@ for version in tqdm(artifacts):
     torch.save(eval_imgs, output_dir / f"{version_name}-sample-torchtensor.pkl")
 
     logging.info("Save the samples as png images")
-    # TODO: terminar de revisar esto...
     for i, img in enumerate(eval_imgs):
         img = (img.clip(-1, 1) * 0.5 + 0.5) * 255
         img = img.permute(1, 2, 0).cpu().numpy()
