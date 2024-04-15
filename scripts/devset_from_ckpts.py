@@ -3,6 +3,7 @@ compute data associated with the devset."""
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -94,11 +95,12 @@ eval_random_seed = args.eval_random_seed
 threshold = args.threshold
 punishment = args.punishment
 
-# Extract the task from the artifact name
-# , e.g. "Task.COMPRESSIBILITY-generous-deluge-8" -> "COMPRESSIBILITY"
-task = artifact_name.split(".")[-1].split("-")[0]
+# Check the output dir----------------------------------------------------------
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+    logging.info("Created output directory %s", output_dir)
 
-# Initialize connection with W&B---------------------------------------------
+# Initialize connection with W&B------------------------------------------------
 api = wandb.Api()
 
 # Obtain artifact versions
@@ -122,6 +124,8 @@ scheduler.set_timesteps(num_inference_steps=num_inference_timesteps)
 
 # Instantiate the reward fun according to the run-------------------------------
 # Load the reward function based on the task specified in the artifact_name
+# , e.g. "Task.COMPRESSIBILITY-generous-deluge-8" -> "COMPRESSIBILITY"
+task = artifact_name.split(".")[-1].split("-")[0]
 if task == Task.LAION.name:
     reward_fn = aesthetic_score(device=device)
 elif task == Task.UNDER30:
@@ -138,10 +142,8 @@ for version in tqdm(artifacts):
     ckpt_version = version.version
     version_name = version.name
     # Download the version ckpt
-    artifact_version = api.artifact(version)
-    download_dir = artifact_version.download(
-        output_dir
-    )  # download in the output_dir directory
+    # artifact_version = api.artifact(version)
+    download_dir = version.download(output_dir)  # download in the output_dir directory
     logging.info("Downloaded %s successfully", version_name)
     logging.info("Initialized the model with %s", version_name)
 
@@ -183,11 +185,23 @@ for version in tqdm(artifacts):
         ["ckpt_name", "ckpt_version", "task", "eval_random_seed", "best_reward"]
         + list(eval_rdf.columns[:-5])
     ]
-    eval_rdf.to_csv(output_dir / f"{version_name}-devset.csv", index=False)
+    eval_rdf.to_csv(output_dir / f"{version_name}-reward.csv", index=False)
 
     # save the logp tensor (T, num_eval_samples) as a csv
     eval_logp = pd.DataFrame(eval_logp.numpy())
-    eval_logp.columns = ["sample_" + str(c + 1) for c in eval_rdf.columns]
+    eval_logp.columns = ["sample_" + str(c + 1) for c in range(eval_logp.shape[1])]
+
+    eval_logp["ckpt_version"] = ckpt_version
+    eval_logp["ckpt_name"] = version_name
+    eval_logp["task"] = task
+    eval_logp["eval_random_seed"] = eval_random_seed
+    eval_logp["best_reward"] = ckpt["best_reward"]
+
+    # change the order of columns
+    eval_logp = eval_logp[
+        ["ckpt_name", "ckpt_version", "task", "eval_random_seed", "best_reward"]
+        + list(eval_logp.columns[:-5])
+    ]
     eval_logp.to_csv(output_dir / f"{version_name}-logp.csv", index=False)
 
     # save the image tensor
