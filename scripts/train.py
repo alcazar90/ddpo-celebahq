@@ -45,7 +45,13 @@ def master_bar(iterable, **kwargs):
 parser = argparse.ArgumentParser(description="DDPO")
 
 parser.add_argument("--wandb_logging", type=bool, default=True)
-parser.add_argument("--task", type=Task, choices=list(Task), default=Task.LAION)
+parser.add_argument(
+    "--task",
+    type=Task,
+    choices=list(Task),
+    default=Task.LAION,
+    help="The downstream task can be one of the following: aesthetic score, under30 years old, over50 years old, jpeg compressibility, jpeg incompressibility.",
+)
 parser.add_argument("--num_samples_per_epoch", type=int, default=10)
 parser.add_argument("--num_epochs", type=int, default=5)
 parser.add_argument("--num_inner_epochs", type=int, default=1)
@@ -60,6 +66,12 @@ parser.add_argument("--run_seed", type=int, default=5633313988)
 parser.add_argument("--eval_every_each_epoch", type=int, default=None)
 parser.add_argument("--eval_rnd_seed", type=int, default=666)
 parser.add_argument("--num_eval_samples", type=int, default=2)
+parser.add_argument(
+    "--resume_from_wandb",
+    type=str,
+    default=None,
+    help="Given a W&B artifact ckpt name, download and resume training from it.",
+)
 parser.add_argument("--resume_from_ckpt", type=str, default=None)
 parser.add_argument(
     "--manual_best_reward",
@@ -91,6 +103,7 @@ clip_ratio = args.clip_ratio
 ddpm_ckpt = args.ddpm_ckpt
 resume_from_ckpt = args.resume_from_ckpt
 manual_best_reward = args.manual_best_reward
+resume_from_wandb = args.resume_from_wandb
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
@@ -109,6 +122,12 @@ if resume_from_ckpt is not None:
     # Check if the ckpt is available
     if not os.path.exists(resume_from_ckpt):
         raise FileNotFoundError(f"Checkpoint file {resume_from_ckpt} not found.")
+
+# Check if resume_from_ckpt and resume_from_wandb are not both None, throw an error
+if resume_from_ckpt is not None and resume_from_wandb is not None:
+    raise ValueError(
+        "You must provide only a single resume mode for load a model checkpoint file; Providing the ckpt path (resume_from_ckpt) or a W&B artifact name for download (resume_from_wandb) to resume training."
+    )
 
 # Create config for logging-----------------------------------------------------
 config = {
@@ -202,20 +221,31 @@ optimizer = torch.optim.AdamW(
 
 # Resume from ckpt--------------------------------------------------------------
 if resume_from_ckpt is not None:
+    logging.info("Resume training from ckpt path: %s", resume_from_ckpt)
     # Add a descripting message to the wandb
     if wandb_logging:
         wandb.run.notes = f"Resuming training from ckpt: {resume_from_ckpt}"
-        # TODO: Before loading the ckpt, obtain the eval samples' trajectories
-        # from the original model and their corresponding reward metric
-        # eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
-        #     reward_model,
-        #     scheduler,
-        #     image_pipe,
-        #     device,
-        #     num_samples=num_eval_samples,
-        #     random_seed=eval_random_seed,
-        # )
-    ckpt = torch.load(resume_from_ckpt)
+    ckpt = torch.load(resume_from_ckpt, map_location=torch.device(device))
+    image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+    optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+
+if resume_from_wandb is not None:
+    logging.info(
+        "Resume training from W&B artifact: %s, will be download at path %s",
+        resume_from_wandb,
+        output_dir,
+    )
+    # Add a descripting message to the wandb
+    if wandb_logging:
+        wandb.run.notes = f"Resuming training from W&B artifact: {resume_from_wandb}"
+    artifact = run.use_artifact(resume_from_wandb)
+    ckpt_path = artifact.download(output_dir)
+    ckpt_path = (
+        os.path.join(output_dir, os.path.basename(resume_from_wandb)).split(":")[0]
+        + "-ckpt.pth"
+    )
+    logging.info(" -> ckpt loading from: %s", ckpt_path)
+    ckpt = torch.load(ckpt_path, map_location=torch.device(device))
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
@@ -460,7 +490,7 @@ for epoch in master_bar(range(num_epochs)):
             )
         wandb.log({"eval_table": table}, commit=False)
         plt.close()
-        eval_mean_reward = eval_rdf.iloc[-1, :].mean().item()
+        eval_mean_reward = eval_rdf.iloc[-1, :].mean()
         logging.info(" -> eval mean reward (%s epoch): %s", epoch + 1, eval_mean_reward)
         wandb.log({"eval_mean_reward": eval_mean_reward})
         del eval_imgs
