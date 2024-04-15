@@ -1,6 +1,7 @@
 """Sample the devset using different checkpoints associated in W&B run and
 compute data associated with the devset."""
 
+import argparse
 import logging
 from pathlib import Path
 
@@ -23,18 +24,77 @@ from ddpo.rewards import (
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
-# config parameters
-project_path = Path("alcazar90/ddpo-compressibility-ddpm-celebahq256")
-artifact_name = "Task.COMPRESSIBILITY-generous-deluge-8"
-output_dir = Path(".")
-device = "cuda"
-num_inference_timesteps = 40
-num_eval_samples = 64
-eval_random_seed = 650
-threshold = 0.7
-punishment = 0.0
+# Define config parameters -----------------------------------------------------
+parser = argparse.ArgumentParser(
+    description="Sample the devset using different checkpoints associated in a W&B's run."
+)
+parser.add_argument(
+    "--project_path",
+    type=str,
+    default="alcazar90/ddpo-compressibility-ddpm-celebahq256",
+    help="W&B project path: user/project-name.",
+)
+parser.add_argument(
+    "--artifact_name",
+    type=str,
+    default="Task.COMPRESSIBILITY-generous-deluge-8",
+    help="W&B artifact name.",
+)
+parser.add_argument(
+    "--output_dir",
+    type=str,
+    default=".",
+    help="Output directory to save the data.",
+)
+parser.add_argument(
+    "--device",
+    type=str,
+    default="cuda",
+    help="Device to run the inference.",
+)
+parser.add_argument(
+    "--num_inference_timesteps",
+    type=int,
+    default=40,
+    help="Number of inference timesteps using for the DDIMScheduler to sample.",
+)
+parser.add_argument(
+    "--num_eval_samples",
+    type=int,
+    default=64,
+    help="Number of samples to evaluate the reward function.",
+)
+parser.add_argument(
+    "--eval_random_seed",
+    type=int,
+    default=650,
+    help="Random seed to sample the devset.",
+)
+parser.add_argument(
+    "--threshold",
+    type=float,
+    default=0.7,
+    help="Threshold to use in the reward function UNDER30 and OVER50.",
+)
+parser.add_argument(
+    "--punishment",
+    type=float,
+    default=0.0,
+    help="Punishment to use in the reward function UNDER30 and OVER50.",
+)
+args = parser.parse_args()
 
-# Initialize connection with W&B
+project_path = Path(args.project_path)
+artifact_name = args.artifact_name
+output_dir = Path(args.output_dir)
+device = args.device
+num_inference_timesteps = args.num_inference_timesteps
+num_eval_samples = args.num_eval_samples
+eval_random_seed = args.eval_random_seed
+threshold = args.threshold
+punishment = args.punishment
+
+# Initialize connection with W&B---------------------------------------------
 api = wandb.Api()
 
 # Obtain artifact versions
@@ -48,7 +108,7 @@ logging.info(
     artifact_name,
 )
 
-# Initialize the diffusion pipeline and scheduler
+# Initialize diffusion pipeline and scheduler-----------------------------------
 image_pipe = DDPMPipeline.from_pretrained("google/ddpm-celebahq-256")
 image_pipe.to(device)
 
@@ -56,6 +116,7 @@ image_pipe.to(device)
 scheduler = DDIMScheduler.from_pretrained("google/ddpm-celebahq-256")
 scheduler.set_timesteps(num_inference_steps=num_inference_timesteps)
 
+# Instantiate the reward fun according to the run-------------------------------
 # Load the reward function based on the task specified in the artifact_name
 # , e.g. "Task.COMPRESSIBILITY-generous-deluge-8" -> "COMPRESSIBILITY"
 task = artifact_name.split(".")[-1].split("-")[0]
@@ -70,7 +131,7 @@ elif task == Task.COMPRESSIBILITY.name:
 elif task == Task.INCOMPRESSIBILITY.name:
     reward_fn = jpeg_incompressibility(device=device)
 
-# Iterate and download ckpt versions...
+# Iterate, download ckpt versions, and sample from it---------------------------
 for version in tqdm(artifacts):
     ckpt_version = version.version
     version_name = version.name
