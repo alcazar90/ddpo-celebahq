@@ -94,6 +94,10 @@ eval_random_seed = args.eval_random_seed
 threshold = args.threshold
 punishment = args.punishment
 
+# Extract the task from the artifact name
+# , e.g. "Task.COMPRESSIBILITY-generous-deluge-8" -> "COMPRESSIBILITY"
+task = artifact_name.split(".")[-1].split("-")[0]
+
 # Initialize connection with W&B---------------------------------------------
 api = wandb.Api()
 
@@ -118,8 +122,6 @@ scheduler.set_timesteps(num_inference_steps=num_inference_timesteps)
 
 # Instantiate the reward fun according to the run-------------------------------
 # Load the reward function based on the task specified in the artifact_name
-# , e.g. "Task.COMPRESSIBILITY-generous-deluge-8" -> "COMPRESSIBILITY"
-task = artifact_name.split(".")[-1].split("-")[0]
 if task == Task.LAION.name:
     reward_fn = aesthetic_score(device=device)
 elif task == Task.UNDER30:
