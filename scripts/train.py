@@ -42,7 +42,7 @@ def master_bar(iterable, **kwargs):
 
 # Define hyparparameters--------------------------------------------------------
 # Using argparse to define hyperparameters
-parser = argparse.ArgumentParser(description="DDPO")
+parser = argparse.ArgumentParser(description="Train DDPO")
 
 parser.add_argument(
     "--wandb_logging",
