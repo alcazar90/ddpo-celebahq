@@ -64,7 +64,7 @@ parser.add_argument(
     "--ckpt_from_wandb",
     type=str,
     default=None,
-    help="Provide the ckpt path from wandb in the format user/project/run/artifact-name",
+    help="Provide the path from W&B model artifact (e.g. alcazar90/ddpo-compressibility-ddpm-celebahq256/Task.COMPRESSIBILITY-generous-deluge-8:v17)",
 )
 parser.add_argument(
     "--num_batches",
@@ -146,12 +146,9 @@ scheduler.set_timesteps(num_inference_steps=num_inference_timesteps)
 if ckpt_path is not None or ckpt_from_wandb is not None:
     if ckpt_from_wandb is not None:
         logging.info("Connect to wandb and download the ckpt")
-        run_path = "/".join(ckpt_from_wandb.split("/")[:-1])
-        artifact_name = ckpt_from_wandb.split("/")[-1]
-        logging.info("Run path: %s | Artifact name: %s", run_path, artifact_name)
         api = wandb.Api()
-        run = api.run(run_path)
-        artifact = run.use_artifact(artifact_name, type="model")
+        artifact = api.artifact(ckpt_from_wandb)
+        artifact_name = ckpt_from_wandb.split("/")[-1]
         # Download the artifact in the current dir
         ckpt_path = artifact.download(".")
         ckpt_path = (
