@@ -148,6 +148,7 @@ if ckpt_path is not None or ckpt_from_wandb is not None:
         logging.info("Connect to wandb and download the ckpt")
         run_path = "/".join(ckpt_from_wandb.split("/")[:-1])
         artifact_name = ckpt_from_wandb.split("/")[-1]
+        logging.info("Run path: %s | Artifact name: %s", run_path, artifact_name)
         api = wandb.Api()
         run = api.run(run_path)
         artifact = run.use_artifact(artifact_name, type="model")
