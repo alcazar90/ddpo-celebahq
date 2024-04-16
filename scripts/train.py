@@ -44,7 +44,11 @@ def master_bar(iterable, **kwargs):
 # Using argparse to define hyperparameters
 parser = argparse.ArgumentParser(description="DDPO")
 
-parser.add_argument("--wandb_logging", type=bool, default=True)
+parser.add_argument(
+    "--wandb_logging",
+    type=bool,
+    default=True,
+)
 parser.add_argument(
     "--task",
     type=Task,
@@ -52,40 +56,112 @@ parser.add_argument(
     default=Task.LAION,
     help="The downstream task can be one of the following: aesthetic score, under30 years old, over50 years old, jpeg compressibility, jpeg incompressibility.",
 )
-parser.add_argument("--num_samples_per_epoch", type=int, default=10)
-parser.add_argument("--num_epochs", type=int, default=5)
-parser.add_argument("--num_inner_epochs", type=int, default=1)
-parser.add_argument("--num_inference_steps", type=int, default=40)
-parser.add_argument("--batch_size", type=int, default=5)
-parser.add_argument("--lr", type=float, default=5e-6)
-parser.add_argument("--weight_decay", type=float, default=1e-4)
-parser.add_argument("--clip_advantages", type=float, default=2.5)
-parser.add_argument("--clip_ratio", type=float, default=1e-4)
-parser.add_argument("--ddpm_ckpt", type=str, default="google/ddpm-celebahq-256")
-parser.add_argument("--run_seed", type=int, default=5633313988)
-parser.add_argument("--eval_every_each_epoch", type=int, default=None)
-parser.add_argument("--eval_rnd_seed", type=int, default=666)
-parser.add_argument("--num_eval_samples", type=int, default=2)
+parser.add_argument(
+    "--num_samples_per_epoch",
+    type=int,
+    default=10,
+)
+parser.add_argument(
+    "--num_epochs",
+    type=int,
+    default=5,
+)
+parser.add_argument(
+    "--num_inner_epochs",
+    type=int,
+    default=1,
+)
+parser.add_argument(
+    "--num_inference_steps",
+    type=int,
+    default=40,
+)
+parser.add_argument(
+    "--batch_size",
+    type=int,
+    default=5,
+)
+parser.add_argument(
+    "--lr",
+    type=float,
+    default=5e-6,
+)
+parser.add_argument(
+    "--weight_decay",
+    type=float,
+    default=1e-4,
+)
+parser.add_argument(
+    "--clip_advantages",
+    type=float,
+    default=2.5,
+)
+parser.add_argument(
+    "--clip_ratio",
+    type=float,
+    default=1e-4,
+)
+parser.add_argument(
+    "--ddpm_ckpt",
+    type=str,
+    default="google/ddpm-celebahq-256",
+)
+parser.add_argument(
+    "--run_seed",
+    type=int,
+    default=5633313988,
+)
+parser.add_argument(
+    "--eval_every_each_epoch",
+    type=int,
+    default=None,
+)
+parser.add_argument(
+    "--eval_rnd_seed",
+    type=int,
+    default=666,
+)
+parser.add_argument(
+    "--num_eval_samples",
+    type=int,
+    default=2,
+)
 parser.add_argument(
     "--resume_from_wandb",
     type=str,
     default=None,
     help="Given a W&B artifact ckpt name, download and resume training from it.",
 )
-parser.add_argument("--resume_from_ckpt", type=str, default=None)
+parser.add_argument(
+    "--resume_from_ckpt",
+    type=str,
+    default=None,
+)
 parser.add_argument(
     "--manual_best_reward",
     type=float,
     default=None,
     help="If you want to manually set the best reward. Useful for resuming training from a ckpt without the best reward (old version format).",
 )
-parser.add_argument("--device", type=str, default="cuda")
+parser.add_argument(
+    "--device",
+    type=str,
+    default="cuda",
+)
 parser.add_argument(
     "--output_dir", type=str, default=".", help="output directory to save model ckpt"
 )
 # threshold and punishment prameter for under30_old and over50_old rewards
-parser.add_argument("--threshold", type=float, default=0.6)
-parser.add_argument("--punishment", type=float, default=-1.0)
+parser.add_argument(
+    "--threshold",
+    type=float,
+    default=0.6,
+)
+parser.add_argument(
+    "--punishment",
+    type=float,
+    default=-1.0,
+)
 
 args = parser.parse_args()
 
@@ -171,13 +247,25 @@ torch.backends.cuda.matmul.allow_tf32 = True
 # Initialize wandb--------------------------------------------------------------
 if wandb_logging:
     if task == Task.LAION:
-        run = wandb.init(project="ddpo-aesthetic-ddpm-celebahq256", config=config)
+        run = wandb.init(
+            project="ddpo-aesthetic-ddpm-celebahq256",
+            config=config,
+        )
     elif task == Task.UNDER30:
-        run = wandb.init(project="ddpo-under30-ddpm-celebahq256", config=config)
+        run = wandb.init(
+            project="ddpo-under30-ddpm-celebahq256",
+            config=config,
+        )
     elif task == Task.OVER50:
-        run = wandb.init(project="ddpo-over50-ddpm-celebahq256", config=config)
+        run = wandb.init(
+            project="ddpo-over50-ddpm-celebahq256",
+            config=config,
+        )
     elif task == Task.COMPRESSIBILITY:
-        run = wandb.init(project="ddpo-compressibility-ddpm-celebahq256", config=config)
+        run = wandb.init(
+            project="ddpo-compressibility-ddpm-celebahq256",
+            config=config,
+        )
     elif task == Task.INCOMPRESSIBILITY:
         run = wandb.init(
             project="ddpo-incompressibility-ddpm-celebahq256",
@@ -200,17 +288,29 @@ scheduler.set_timesteps(num_inference_steps=num_inference_steps, device=device)
 
 # Download and initialize the reward model
 if task == Task.LAION:
-    reward_model = aesthetic_score(device=device)
+    reward_model = aesthetic_score(
+        device=device,
+    )
 elif task == Task.UNDER30:
     reward_model = under30_old(
-        threshold=threshold, punishment=punishment, device=device
+        threshold=threshold,
+        punishment=punishment,
+        device=device,
     )
 elif task == Task.OVER50:
-    reward_model = over50_old(threshold=threshold, punishment=punishment, device=device)
+    reward_model = over50_old(
+        threshold=threshold,
+        punishment=punishment,
+        device=device,
+    )
 elif task == Task.COMPRESSIBILITY:
-    reward_model = jpeg_compressibility(device=device)
+    reward_model = jpeg_compressibility(
+        device=device,
+    )
 elif task == Task.INCOMPRESSIBILITY:
-    reward_model = jpeg_incompressibility(device=device)
+    reward_model = jpeg_incompressibility(
+        device=device,
+    )
 
 # Optimizer
 optimizer = torch.optim.AdamW(
