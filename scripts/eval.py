@@ -7,6 +7,7 @@ import pickle
 
 import pandas as pd
 import torch
+import wandb
 from diffusers import DDIMScheduler, DDPMPipeline
 
 from ddpo.config import Task
@@ -24,23 +25,68 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 # Define hyparparameters--------------------------------------------------------
 # Using argparse to define hyperparameters
-parser = argparse.ArgumentParser(description="DDPO")
+parser = argparse.ArgumentParser(
+    description="Sample from google/ddpm-celebahq-256 ckpt and compute rewards."
+)
 
-parser.add_argument("--num_samples", type=int, default=25)
-parser.add_argument("--num_inference_timesteps", type=int, default=40)
-parser.add_argument("--task", type=Task, choices=list(Task), default=Task.LAION)
-parser.add_argument("--output_path", type=str, default=".")
-parser.add_argument("--metadata_path", type=str, default="./metadata.csv")
-parser.add_argument("--ckpt_path", type=str, default="./ckpt.pth")
-parser.add_argument("--num_batches", type=int, default=2)
+parser.add_argument(
+    "--num_samples",
+    type=int,
+    default=25,
+)
+parser.add_argument(
+    "--num_inference_timesteps",
+    type=int,
+    default=40,
+)
+parser.add_argument(
+    "--task",
+    type=Task,
+    choices=list(Task),
+    default=Task.LAION,
+)
+parser.add_argument(
+    "--output_path",
+    type=str,
+    default=".",
+)
+parser.add_argument(
+    "--metadata_path",
+    type=str,
+    default="./metadata.csv",
+)
+parser.add_argument(
+    "--ckpt_path",
+    type=str,
+    default=None,
+)
+parser.add_argument(
+    "--ckpt_from_wandb",
+    type=str,
+    default=None,
+)
+parser.add_argument(
+    "--num_batches",
+    type=int,
+    default=2,
+)
 parser.add_argument(
     "--device",
     type=str,
     default="cuda" if torch.cuda.is_available() else "cpu",
 )
 # threshold and punishment prameter for under30_old and over50_old rewards
-parser.add_argument("--threshold", type=float, default=0.6)
-parser.add_argument("--punishment", type=float, default=-1.0)
+parser.add_argument(
+    "--threshold",
+    type=float,
+    default=0.6,
+)
+parser.add_argument(
+    "--punishment",
+    type=float,
+    default=-1.0,
+)
+
 
 # parse the arguments
 args = parser.parse_args()
@@ -49,6 +95,7 @@ num_inference_timesteps = args.num_inference_timesteps
 task = args.task
 metadata_path = args.metadata_path
 ckpt_path = args.ckpt_path
+ckpt_from_wandb = args.ckpt_from_wandb
 num_batches = args.num_batches
 output_path = args.output_path
 device = args.device
@@ -62,10 +109,6 @@ punishment = args.punishment
 if not os.path.exists(metadata_path):
     raise FileNotFoundError("metadata.csv file not found in %s", metadata_path)
 
-# Check if ckpt exists
-if not os.path.exists(ckpt_path):
-    raise FileNotFoundError("ckpt.pth file not found in %s", ckpt_path)
-
 # Check if the output folder exists. If not, create it
 if not os.path.exists(output_path):
     logging.info("Creating output folder %s", output_path)
@@ -78,6 +121,12 @@ if folder_name == "celebahq-sample-dataset":
         "Output folder cannot be celebahq-sample-dataset. Please provide a different folder name."
     )
 
+# Check if ckpt_path and ckpt_from_wandb are both provided
+if ckpt_path is not None and ckpt_from_wandb is not None:
+    raise ValueError(
+        "Both ckpt_path and ckpt_from_wandb cannot be provided. You must choose only a single checkpoint to load."
+    )
+
 # Read metadata file
 # ------------------------------------------------------------------------------
 metadata = pd.read_csv(metadata_path)
@@ -87,26 +136,67 @@ metadata = pd.read_csv(metadata_path)
 image_pipe = DDPMPipeline.from_pretrained("google/ddpm-celebahq-256")
 image_pipe.to(device)
 
-# Load ckpt and set the model to eval mode
-ckpt = torch.load(ckpt_path)
-image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
-image_pipe.unet.eval()
 
 # Create new scheduler and set num inference steps
 scheduler = DDIMScheduler.from_pretrained("google/ddpm-celebahq-256")
 scheduler.set_timesteps(num_inference_steps=num_inference_timesteps)
 
-# Download and initialize the reward model
+# Load a ckpt if ckpt_path or ckpt_from_wandb is provided
+if ckpt_path is not None or ckpt_from_wandb is not None:
+    if ckpt_from_wandb is not None:
+        logging.info("Connect to wandb and download the ckpt")
+        api = wandb.API()
+        run_path = input(
+            "Enter the project path (e.g. alcazar90/ddpo-compressibility-ddpm-celebahq256/generous-deluge-8):"
+        )
+        artifact_name = input(
+            "Enter the artifact name (e.g. Task.COMPRESSIBILITY-generous-deluge-8:latest):"
+        )
+        run = api.run(run_path)
+        artifact = run.use_artifact(artifact_name, type="model")
+        # Download the artifact in the current dir
+        ckpt_path = artifact.download(".")
+        ckpt_path = (
+            os.path.join(".", os.path.basename(artifact_name)).split(":")[0]
+            + "-ckpt.pth"
+        )
+        ckpt = torch.load(ckpt_path)
+        logging.info("Loading ckpt from %s", ckpt_path)
+    if ckpt_path is not None:
+        ckpt = torch.load(ckpt_path)
+        logging.info("Loading ckpt from %s", ckpt_path)
+    # Load the model state dict
+    image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+    logging.info("Ckpt loaded successfully!")
+
+# Set the model to eval mode
+image_pipe.unet.eval()
+
+# Download and initialize the reward function
 if task == Task.LAION:
-    reward_model = aesthetic_score()
+    reward_fn = aesthetic_score(
+        device=device,
+    )
 elif task == Task.UNDER30:
-    reward_model = under30_old(threshold=threshold, punishment=punishment)
+    reward_fn = under30_old(
+        threshold=threshold,
+        punishment=punishment,
+        device=device,
+    )
 elif task == Task.OVER50:
-    reward_model = over50_old(threshold=threshold, punishment=punishment)
+    reward_fn = over50_old(
+        threshold=threshold,
+        punishment=punishment,
+        device=device,
+    )
 elif task == Task.COMPRESSIBILITY:
-    reward_model = jpeg_compressibility()
+    reward_fn = jpeg_compressibility(
+        device=device,
+    )
 elif task == Task.INCOMPRESSIBILITY:
-    reward_model = jpeg_incompressibility()
+    reward_fn = jpeg_incompressibility(
+        device=device,
+    )
 
 
 # Running the sampling process, compute metrics and save the results
@@ -137,7 +227,7 @@ for seed in metadata.loc[:, "random_seed"]:
     logging.info("Computing rewards")
     rewards = []
     for xt in data["trajectory"]:
-        rewards.append(reward_model(xt.to(device)).cpu())
+        rewards.append(reward_fn(xt.to(device)).cpu())
     data["rewards"] = torch.stack(rewards).view(-1).tolist()
     logging.info(
         "Rewards size %s | First 5 rewards: %s",
