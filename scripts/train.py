@@ -51,6 +51,12 @@ parser.add_argument(
     default=True,
 )
 parser.add_argument(
+    "--save_model",
+    type=bool,
+    default=True,
+    help="Save the model (and optimizer) in wandb as an artifact.",
+)
+parser.add_argument(
     "--task",
     type=Task,
     choices=list(Task),
@@ -180,6 +186,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 wandb_logging = args.wandb_logging
+save_model = args.save_model
 task = args.task
 num_samples_per_epoch = args.num_samples_per_epoch
 num_epochs = args.num_epochs
@@ -224,6 +231,7 @@ if resume_from_ckpt is not None and resume_from_wandb is not None:
 # Create config for logging-----------------------------------------------------
 config = {
     "task": task,
+    "save_model": save_model,
     "num_samples_per_epoch": num_samples_per_epoch,
     "num_epochs": num_epochs,
     "num_inner_epochs": num_inner_epochs,
@@ -663,8 +671,8 @@ for epoch in master_bar(range(num_epochs)):
         del k
         flush()
 
-        # save model ckpt if the current mean reward is better than the best reward
-        if eval_mean_reward > best_reward:
+        # save model ckpt if the current mean reward is better than the best reward and save_model is True...
+        if eval_mean_reward > best_reward and save_model:
             logging.info(
                 " -> saving model ckpt for run %s, current mean reward: %s | best reward: %s",
                 run.name,
