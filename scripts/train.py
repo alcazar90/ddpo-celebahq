@@ -47,12 +47,12 @@ parser = argparse.ArgumentParser(description="Train DDPO")
 
 parser.add_argument(
     "--wandb_logging",
-    type=bool,
+    action="store_true",
     default=True,
 )
 parser.add_argument(
     "--save_model",
-    type=bool,
+    action="store_true",
     default=True,
     help="Save the model (and optimizer) in wandb as an artifact.",
 )
