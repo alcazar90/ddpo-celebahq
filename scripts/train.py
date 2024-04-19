@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import math
 import os
 
 import matplotlib.pyplot as plt
@@ -82,9 +83,22 @@ parser.add_argument(
     default=5,
 )
 parser.add_argument(
-    "--lr",
+    "--initial_lr",
     type=float,
-    default=5e-6,
+    default=9e-8,
+    help="The initial learning rate.",
+)
+parser.add_argument(
+    "--peak_lr",
+    type=float,
+    default=6e-7,
+    help="The peak learning rate at the end of the linear warmup phase.",
+)
+parser.add_argument(
+    "--warmup_pct",
+    type=float,
+    default=0.1,
+    help="The percentage of training steps to use for learning rate warmup. Common values are 0.1\% - 10\%. (default: 10%)",
 )
 parser.add_argument(
     "--weight_decay",
@@ -172,7 +186,9 @@ num_epochs = args.num_epochs
 num_inner_epochs = args.num_inner_epochs
 num_inference_steps = args.num_inference_steps
 batch_size = args.batch_size
-lr = args.lr
+initial_lr = args.initial_lr
+peak_lr = args.peak_lr
+warmup_pct = args.warmup_pct
 weight_decay = args.weight_decay
 clip_advantages = args.clip_advantages
 clip_ratio = args.clip_ratio
@@ -214,7 +230,9 @@ config = {
     "batch_size": batch_size,
     "num_batches": num_batches,
     "num_inference_steps": num_inference_steps,
-    "lr": lr,
+    "initial_lr": initial_lr,
+    "peak_lr": peak_lr,
+    "warmup_pct": warmup_pct,
     "weight_decay": weight_decay,
     "clip_advantages": clip_advantages,
     "clip_ratio": clip_ratio,
@@ -315,7 +333,6 @@ elif task == Task.INCOMPRESSIBILITY:
 # Optimizer
 optimizer = torch.optim.AdamW(
     image_pipe.unet.parameters(),
-    lr=lr,
     weight_decay=weight_decay,
 )  # optimizer
 
@@ -349,9 +366,26 @@ if resume_from_wandb is not None:
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
-# Training Loop-----------------------------------------------------------------
-logging.info("Initializing RL training loop...")
+# Learning Rate Setting---------------------------------------------------------
+# learning rate with linear warmpup and half-cosine cycle annealing
+# implementation based on: https://github.com/rasbt/LLMs-from-scratch/blob/main/appendix-D/01_main-chapter-code/appendix-D.ipynb
+total_training_steps = (
+    num_epochs * num_inner_epochs * num_batches
+)  # number of time that parameters are update
+warmup_steps = int(warmup_pct * total_training_steps)
+min_lr = 0.1 * initial_lr  # possible an hyperparameter...
+lr_increment = (peak_lr - initial_lr) / warmup_steps
+global_step = -1  # global lr counter for the run (training experiment)
 
+logging.info(
+    "Total training steps: %s | warmup steps: %s | lr increment: %s | min lr: %s",
+    total_training_steps,
+    warmup_steps,
+    lr_increment,
+    min_lr,
+)
+# Training Loop-----------------------------------------------------------------
+track_lrs = []
 mean_rewards = []
 epoch_loss = []
 best_reward = -float("inf")  # initialize best reward
@@ -373,6 +407,7 @@ if resume_from_ckpt is not None:
             best_reward,
         )
 
+logging.info("Initializing RL training loop...")
 for epoch in master_bar(range(num_epochs)):
     logging.info("Epoch: %s", epoch + 1)
     if wandb_logging:
@@ -454,14 +489,46 @@ for epoch in master_bar(range(num_epochs)):
 
     logging.info("Starting inner loop...")
     for inner_epoch in progress_bar(range(num_inner_epochs)):
-        # chunk them into batches
+        # chunk the samples collected into batches
         all_step_preds_chunked = torch.chunk(all_step_preds, num_batches, dim=1)
         log_probs_chunked = torch.chunk(log_probs, num_batches, dim=1)
         advantages_chunked = torch.chunk(advantages, num_batches, dim=0)
 
         loss_value = 0.0
+        # now we start to iterate over the batches (manual dataloader)
         for i in progress_bar(range(len(all_step_preds_chunked))):
             optimizer.zero_grad()
+            global_step += 1  # lr counter
+
+            # Adjust the learning rate based on the current phase: warmup/cosine annealing
+            if global_step < warmup_steps:
+                # Linear warmup
+                lr = initial_lr + global_step * lr_increment
+                logging.info(
+                    "training step %s / %s, lr in warmup phase: %s",
+                    global_step,
+                    total_training_steps,
+                    lr,
+                )
+            else:
+                # Cosine annealing after warmup
+                progress = (global_step - warmup_steps) / (
+                    total_training_steps - warmup_steps
+                )
+                lr = min_lr + (peak_lr - min_lr) * 0.5 * (
+                    1 + math.cos(math.pi * progress)
+                )
+                logging.info(
+                    "training step %s / %s, lr in cosine annealing phase: %s",
+                    global_step,
+                    total_training_steps,
+                    lr,
+                )
+
+            # Apply the calculated learning rate to the optimizer
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = lr
+            track_lrs.append(optimizer.param_groups[0]["lr"])
 
             # Obtain the loss value and the ratio of the importance weight
             loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
@@ -475,10 +542,13 @@ for epoch in master_bar(range(num_epochs)):
                 device,
             )  # loss.backward happens inside
 
-            torch.nn.utils.clip_grad_norm_(
-                image_pipe.unet.parameters(),
-                1.0,
-            )  # gradient clipping
+            # Apply gradient clipping after the warmup phase to avoid expliding gradients
+            if global_step > warmup_steps:
+                torch.nn.utils.clip_grad_norm_(
+                    image_pipe.unet.parameters(),
+                    max_norm=1.0,
+                )  # gradient clipping
+
             optimizer.step()
             loss_value += loss
 
@@ -493,6 +563,7 @@ for epoch in master_bar(range(num_epochs)):
                         "KL (current vs old policy)": KL,
                         "epoch": epoch,
                         "batch": i,
+                        "learning_rate": lr,
                     },
                 )
 
@@ -508,16 +579,9 @@ for epoch in master_bar(range(num_epochs)):
             inner_epoch + 1,
         )
 
-    # if wandb_logging:
-    #     wandb.log({"reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy())})
-    #     wandb.log({"mean_reward": mean_rewards[-1]})
-
     epoch_loss.append(inner_loop_losses)
 
-    # evaluation loop each X epochs, and at the start and end of training
-    # TODO: encapsulate this in a function to make the code more readable.
-    # Add an option for create a table in resume ckpt mode to compare the
-    # initial, ckpt, and current reward trajectories as well as images.
+    # # ~~ start of evaluation ~~
     if (
         eval_every_each_epoch is not None
         and (((epoch + 1) % eval_every_each_epoch) == 0 or epoch == 0)
