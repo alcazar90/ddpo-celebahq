@@ -47,13 +47,13 @@ parser = argparse.ArgumentParser(description="Train DDPO")
 
 parser.add_argument(
     "--wandb_logging",
-    action="store_true",
-    default=True,
+    action=argparse.BooleanOptionalAction,
+    default=False,
 )
 parser.add_argument(
     "--save_model",
-    action="store_true",
-    default=True,
+    action=argparse.BooleanOptionalAction,
+    default=False,
     help="Save the model (and optimizer) in wandb as an artifact.",
 )
 parser.add_argument(
@@ -381,6 +381,7 @@ total_training_steps = (
     num_epochs * num_inner_epochs * num_batches
 )  # number of time that parameters are update
 warmup_steps = int(warmup_pct * total_training_steps)
+warmup_steps = 1 if warmup_steps < 1 else warmup_steps  # avoid ZeroDivisionError
 min_lr = 0.1 * initial_lr  # possible an hyperparameter...
 lr_increment = (peak_lr - initial_lr) / warmup_steps
 global_step = -1  # global lr counter for the run (training experiment)
@@ -695,7 +696,7 @@ for epoch in master_bar(range(num_epochs)):
             artifact = wandb.Artifact(f"{task}-{run.name}", type="model")
             artifact.add_file(ckpt_path)
             run.log_artifact(artifact)
-            logging.info("End evaluation loop")
+        logging.info("End evaluation loop")
     # # ~~ end of evaluation ~~
 
     # clean variables
