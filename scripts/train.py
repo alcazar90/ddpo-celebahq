@@ -492,6 +492,26 @@ for epoch in master_bar(range(num_epochs)):
     del batch_advantages
     flush()
 
+    # ~~ evaluation step ~~
+    # Ensure the devset is initialized with the initial model parameters before any updates.
+    if eval_every_each_epoch is not None and epoch == 0 and wandb_logging:
+        logging.info(
+            "Initializing devset with images and reward trajectories using seed %s, prior to the first update of model parameters at epoch %s.",
+            eval_random_seed,
+            epoch + 1,
+        )
+        eval_imgs, eval_rdf, _, _ = evaluation_loop(
+            reward_model,
+            scheduler,
+            image_pipe,
+            device,
+            num_samples=num_eval_samples,
+            random_seed=eval_random_seed,
+        )
+        initial_eval_samples = eval_imgs.detach().cpu().clone()
+        initial_eval_trajectories = eval_rdf.copy()
+    # ~~ end evaluation step ~~
+
     # For num_inner_epochs times, we go over each sample compute the loss,
     # backpropagate, and update our diffusion model.
     inner_loop_losses = []
@@ -605,11 +625,6 @@ for epoch in master_bar(range(num_epochs)):
             num_samples=num_eval_samples,
             random_seed=eval_random_seed,
         )
-
-        # save the initial evaluation samples images (for comparison)
-        if epoch == 0:
-            initial_eval_samples = eval_imgs.detach().cpu().clone()
-            initial_eval_trajectories = eval_rdf.copy()
 
         # log the evaluation results in a wandb.Table
         table = wandb.Table(
