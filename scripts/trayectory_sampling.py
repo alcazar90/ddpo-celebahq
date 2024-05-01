@@ -90,7 +90,7 @@ parser.add_argument(
 parser.add_argument(
     "--eval_seed",
     type=list,
-    default=[620],
+    default=620,
 )
 
 
