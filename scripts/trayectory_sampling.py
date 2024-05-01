@@ -205,6 +205,7 @@ elif task == Task.INCOMPRESSIBILITY:
 count = 0
 seeds = []
 # for seed in metadata.loc[:, "random_seed"]:
+print('eval_seed:', eval_seed)
 for seed in eval_seed:
     logging.info("Starting sampling process #%s", count + 1)
 
