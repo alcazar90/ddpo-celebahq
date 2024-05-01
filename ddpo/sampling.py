@@ -173,8 +173,9 @@ def sample_data_from_celebahq(
         )  # .prev_sample attribute refer to the backward process (denoising)
 
         # save tensors each 10 steps and in the last
-        if i % 10 == 0 or i == len(scheduler.timesteps) - 1:
-            trajectory.append(xt.clone().detach().cpu())
+        trajectory.append(xt.clone().detach().cpu())
+        # if i % 10 == 0 or i == len(scheduler.timesteps) - 1:
+        #     trajectory.append(xt.clone().detach().cpu())
 
     # save trajectories in obs' dictionary
     obs["trajectory"] = trajectory
