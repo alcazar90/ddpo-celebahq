@@ -89,8 +89,9 @@ parser.add_argument(
 ),
 parser.add_argument(
     "--eval_seed",
-    type=list,
-    default=620,
+    type=str,
+    default="620",
+    help="Comma-separated list of seeds for initializing random number generation for reproducibility.",
 )
 
 
@@ -107,7 +108,7 @@ output_path = args.output_path
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
-eval_seed = args.eval_seed
+eval_seeds = list(map(int, args.eval_seed.split(',')))
 
 
 # Verify if file and folder exists for read and write
@@ -205,8 +206,7 @@ elif task == Task.INCOMPRESSIBILITY:
 count = 0
 seeds = []
 # for seed in metadata.loc[:, "random_seed"]:
-print('eval_seed:', eval_seed)
-for seed in eval_seed:
+for seed in eval_seeds:
     logging.info("Starting sampling process #%s", count + 1)
 
     # check if we have reached the number of batches
