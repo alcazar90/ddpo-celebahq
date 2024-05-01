@@ -86,6 +86,11 @@ parser.add_argument(
     "--punishment",
     type=float,
     default=-1.0,
+),
+parser.add_argument(
+    "--eval_seed",
+    type=list,
+    default=[620],
 )
 
 
@@ -102,13 +107,14 @@ output_path = args.output_path
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
+eval_seed = args.eval_seed
 
 
 # Verify if file and folder exists for read and write
 # ------------------------------------------------------------------------------
 # Check if the metadata file exists
-if not os.path.exists(metadata_path):
-    raise FileNotFoundError("metadata.csv file not found in %s", metadata_path)
+## if not os.path.exists(metadata_path):
+##     raise FileNotFoundError("metadata.csv file not found in %s", metadata_path)
 
 # Check if the output folder exists. If not, create it
 if not os.path.exists(output_path):
@@ -130,7 +136,7 @@ if ckpt_path is not None and ckpt_from_wandb is not None:
 
 # Read metadata file
 # ------------------------------------------------------------------------------
-metadata = pd.read_csv(metadata_path)
+## metadata = pd.read_csv(metadata_path)
 
 # Download google/ddpm-celebahq-256 image pipeline and scheduler & load ckpt
 # ------------------------------------------------------------------------------
@@ -198,7 +204,8 @@ elif task == Task.INCOMPRESSIBILITY:
 # ------------------------------------------------------------------------------
 count = 0
 seeds = []
-for seed in metadata.loc[:, "random_seed"]:
+# for seed in metadata.loc[:, "random_seed"]:
+for seed in eval_seed:
     logging.info("Starting sampling process #%s", count + 1)
 
     # check if we have reached the number of batches
