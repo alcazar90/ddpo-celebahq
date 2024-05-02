@@ -19,7 +19,7 @@ from ddpo.rewards import (
     under30_old,
 )
 from ddpo.sampling import sample_data_from_celebahq, sample_from_ddpm_celebahq
-from trayectory_metrics import predict_denoised_image
+from trayectory_metrics import predict_denoised_image, predict_and_store_denoised_images_in_batches
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
@@ -203,6 +203,7 @@ elif task == Task.INCOMPRESSIBILITY:
 
 # Running the sampling process, compute metrics and save the results
 # ------------------------------------------------------------------------------
+need_denoised_images = True  # Flag to determine when to compute denoised images
 count = 0
 seeds = []
 # for seed in metadata.loc[:, "random_seed"]:
@@ -226,6 +227,13 @@ for seed in eval_seeds:
     data = sample_data_from_celebahq(
         num_samples, scheduler, image_pipe, device, random_seed=rnd_seed
     )
+    # Optionally predict and store denoised images
+    if need_denoised_images:  # This flag determines when to compute denoised images
+        logging.info("Predicting and storing denoised images.")
+        # Assuming image_pipe, scheduler are set up, and images are loaded
+        denoised_images = predict_and_store_denoised_images_in_batches(data['trajectory'], image_pipe, scheduler, device='cuda')
+
+        data['trajectory_noiseless'] = denoised_images
     # compute rewards
     logging.info("Computing rewards")
     rewards = []
