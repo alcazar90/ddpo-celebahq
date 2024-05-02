@@ -188,3 +188,4 @@ def sample_data_from_celebahq(
     flush()
 
     return obs
+
