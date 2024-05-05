@@ -96,6 +96,7 @@ def sample_denoised_data_with_initial_state(
     image_pipe,
     device,
     initial_states,
+    initial_states_denoised,
     start_step,
     random_seed=None
 ):
@@ -119,9 +120,10 @@ def sample_denoised_data_with_initial_state(
         torch.manual_seed(random_seed)
 
     xt = initial_states[start_step].to(device)
+    x0t = initial_states_denoised[start_step].to(device)
 
     trajectory = [xt.clone().detach().cpu()]
-    trajectory_denoised = [xt.clone().detach().cpu()]
+    trajectory_denoised = [x0t.clone().detach().cpu()]
 
     # Start denoising from the specified step
     for i in range(start_step, len(scheduler.timesteps)):
@@ -210,7 +212,8 @@ def process_model_data_injection(image_pipe, scheduler, device, seed, reward_fn,
             scheduler,
             image_pipe,
             device,
-            initial_data["trajectory"],  # Use the provided initial trajectories
+            initial_data["trajectory"],
+            initial_data["trajectory_denoised"],    # Use the provided initial trajectories
             start_step,
             random_seed=seed
         )
