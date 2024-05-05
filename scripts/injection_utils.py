@@ -218,6 +218,7 @@ def process_model_data_injection(image_pipe, scheduler, device, seed, reward_fn,
         rewards = []
         for xt in data["trajectory"]:
             rewards.append(reward_fn(xt.to(device)).cpu())
+        data["rewards"] = torch.stack(rewards).view(-1).tolist()
         # Check if the rewards list has at least five elements, if not, show as many as available
         last_rewards = data["rewards"][-5:] if len(data["rewards"]) >= 5 else data["rewards"]
         logging.info(
