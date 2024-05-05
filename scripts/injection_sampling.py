@@ -89,8 +89,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--start_steps",
-    type=int,
-    default=0,
+    type=str,
+    default="2",
+    help="Comma-separated list of start steps for initializing denoising in base model.",
 )
 # threshold and punishment prameter for under30_old and over50_old rewards
 parser.add_argument(
@@ -124,7 +125,7 @@ ckpt_from_wandb_finetune = args.ckpt_from_wandb_finetune
 num_batches = args.num_batches
 output_path = args.output_path
 device = args.device
-start_steps = args.start_steps
+start_steps = list(map(int, args.start_steps.split(',')))
 threshold = args.threshold
 punishment = args.punishment
 eval_seeds = list(map(int, args.eval_seed.split(',')))
