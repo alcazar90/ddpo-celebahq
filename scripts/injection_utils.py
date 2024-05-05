@@ -192,12 +192,12 @@ def process_model(image_pipe, scheduler, device, num_samples, seed, reward_fn, o
 
 def process_model_data_injection(image_pipe, scheduler, device, seed, reward_fn, output_path, initial_data, start_steps, ckpt_path=None, ckpt_from_wandb=None):
     # Load the model checkpoint
-    ckpt_pth = load_model(ckpt_path, ckpt_from_wandb)
-    if ckpt_pth is None:
+    ckpt = load_model(ckpt_path, ckpt_from_wandb)
+    if ckpt is None:
         logging.error("Failed to load model checkpoint.")
         return
 
-    ckpt = torch.load(ckpt_pth)  # Load the checkpoint
+    # ckpt = torch.load(ckpt_pth)  # Load the checkpoint
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     image_pipe.unet.eval()
 
