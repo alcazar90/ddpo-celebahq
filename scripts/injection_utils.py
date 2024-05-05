@@ -154,12 +154,12 @@ def sample_denoised_data_with_initial_state(
 
 def process_model(image_pipe, scheduler, device, num_samples, seed, reward_fn, output_path, ckpt_path=None, ckpt_from_wandb=None):
     # Load the model checkpoint
-    ckpt_pth = load_model(ckpt_path, ckpt_from_wandb)
-    if ckpt_pth is None:
+    ckpt = load_model(ckpt_path, ckpt_from_wandb)
+    if ckpt is None:
         logging.error("Failed to load model checkpoint.")
         return
 
-    ckpt = torch.load(ckpt_pth)  # Adjust based on actual needs for loading
+    # ckpt = torch.load(ckpt_pth)  # Adjust based on actual needs for loading
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     image_pipe.unet.eval()
 
