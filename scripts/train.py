@@ -24,7 +24,7 @@ from ddpo.rewards import (
     over50_old,
     under30_old,
 )
-from ddpo.sampling import sample_from_ddpm_celebahq
+from ddpo.sampling import sample_from_ddpm_celebahq, improved_sample_from_ddpm_celebahq
 from ddpo.utils import decode_tensor_to_np_img, flush
 
 # Set up logging----------------------------------------------------------------
@@ -384,18 +384,19 @@ for epoch in master_bar(range(num_epochs)):
         num_batches,
     )
 
-    all_step_preds, log_probs, advantages, all_rewards = [], [], [], []
+    all_step_preds, log_probs, advantages, all_rewards, all_initiate_train_steps = [], [], [], [], []
 
     # sampling `num_samples_per_epoch` images, intermediate states, and
     # final_rewards by collecting each samples_per_batch, until complete
     # batch_size times `num_samples_per_epoch = num_batches * batch_size`
     for _ in progress_bar(range(num_batches)):
-        batch_all_step_preds, batch_log_probs = sample_from_ddpm_celebahq(
+        batch_all_step_preds, batch_log_probs, initiate_train_step = improved_sample_from_ddpm_celebahq(
             batch_size,
             scheduler,
             image_pipe,
             device,
-        )
+            epoch,
+            num_epochs)
 
         # compute reward on the final step (sample), and obtain advantages
         batch_rewards = reward_model(batch_all_step_preds[-1])
@@ -406,11 +407,14 @@ for epoch in master_bar(range(num_epochs)):
         log_probs.append(batch_log_probs)
         advantages.append(batch_advantages)
         all_rewards.append(batch_rewards)
+        all_initiate_train_steps.append(initiate_train_step)
 
     all_step_preds = torch.cat(all_step_preds, dim=1)  # concatenate across batch dim
     log_probs = torch.cat(log_probs, dim=1)  # concatenate across batch dim
     advantages = torch.cat(advantages)
     all_rewards = torch.cat(all_rewards)
+    logging.info(" Batch intiate train steps for ddpo: %s", all_initiate_train_steps)
+    all_initiate_train_steps = torch.cat(all_initiate_train_steps)
 
     # save the mean reward of the current samples
     mean_rewards.append(all_rewards.mean().item())
@@ -446,6 +450,7 @@ for epoch in master_bar(range(num_epochs)):
     del batch_log_probs
     del batch_rewards
     del batch_advantages
+    del initiate_train_step
     flush()
 
     # For num_inner_epochs times, we go over each sample compute the loss,
@@ -458,6 +463,7 @@ for epoch in master_bar(range(num_epochs)):
         all_step_preds_chunked = torch.chunk(all_step_preds, num_batches, dim=1)
         log_probs_chunked = torch.chunk(log_probs, num_batches, dim=1)
         advantages_chunked = torch.chunk(advantages, num_batches, dim=0)
+        all_initiate_train_steps_chunked = torch.chunk(all_initiate_train_steps, num_batches, dim=0)
 
         loss_value = 0.0
         for i in progress_bar(range(len(all_step_preds_chunked))):
