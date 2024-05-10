@@ -160,7 +160,7 @@ def improved_sample_from_ddpm_celebahq(
 
     # save initial state x_T and intermediate steps, saave log_probs for the trajectory
     trajectory, log_probs = [xt], []
-    initiate_train_steps = sample_timesteps(num_samples, scheduler.config.num_train_timesteps, epoch, num_epochs, mean_zone_interest_sampling, 40, 30, 40, device)
+    initiate_train_steps = sample_timesteps(num_samples, scheduler.config.num_train_timesteps, epoch, num_epochs,scheduler, mean_zone_interest_sampling, 40, 30, 40, device)
 
     for _, t in enumerate(progress_bar(scheduler.timesteps)):
         # [S] scale input based on the timestep
@@ -282,7 +282,7 @@ def sample_data_from_celebahq(
     return obs
 
 
-def sample_timesteps(num_samples, num_timesteps, current_iteration, target_iteration, mu=30, variance=40, min_clip=30, max_clip=40, device='cpu'):
+def sample_timesteps(num_samples, num_timesteps, current_iteration, target_iteration, scheduler, mu=30, variance=40, min_clip=30, max_clip=40, device='cpu'):
     sigma = variance  # Standard deviation for the Gaussian distribution
     gamma = current_iteration / target_iteration  # Blend ratio
 
@@ -304,6 +304,7 @@ def sample_timesteps(num_samples, num_timesteps, current_iteration, target_itera
     sampled_timesteps = torch.multinomial(mixed_probs, num_samples, replacement=True)
 
     # Compute and return the mean of the sampled timesteps
-    mean_sampled_timesteps = sampled_timesteps.float().mean().item()
+    # mean_sampled_timesteps = sampled_timesteps.float().mean().item()
+    mean_sampled_timesteps = max(0, min(mean_sampled_timesteps, len(scheduler.timesteps) - 1))
 
     return int(mean_sampled_timesteps)
