@@ -423,7 +423,7 @@ for epoch in master_bar(range(num_epochs)):
     advantages = torch.cat(advantages)
     all_rewards = torch.cat(all_rewards)
     logging.info(" Batch intiate train steps for ddpo: %s", all_initiate_train_steps)
-    all_initiate_train_steps = torch.cat(all_initiate_train_steps)
+    # all_initiate_train_steps = torch.cat(all_initiate_train_steps)
 
     # save the mean reward of the current samples
     mean_rewards.append(all_rewards.mean().item())
@@ -473,6 +473,7 @@ for epoch in master_bar(range(num_epochs)):
         log_probs_chunked = torch.chunk(log_probs, num_batches, dim=1)
         advantages_chunked = torch.chunk(advantages, num_batches, dim=0)
         all_initiate_train_steps_chunked = torch.chunk(all_initiate_train_steps, num_batches, dim=0)
+        print("Length of all_step_preds_chunked: ", len(all_step_preds_chunked))
 
         loss_value = 0.0
         for i in progress_bar(range(len(all_step_preds_chunked))):
