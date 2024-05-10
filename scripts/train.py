@@ -103,6 +103,11 @@ parser.add_argument(
     default=1e-4,
 )
 parser.add_argument(
+    "--mean_zone_interest_sampling",
+    type=int,
+    default=30,
+)
+parser.add_argument(
     "--ddpm_ckpt",
     type=str,
     default="google/ddpm-celebahq-256",
@@ -177,6 +182,7 @@ lr = args.lr
 weight_decay = args.weight_decay
 clip_advantages = args.clip_advantages
 clip_ratio = args.clip_ratio
+mean_zone_interest_sampling = args.mean_zone_interest_sampling
 ddpm_ckpt = args.ddpm_ckpt
 resume_from_ckpt = args.resume_from_ckpt
 manual_best_reward = args.manual_best_reward
@@ -219,6 +225,7 @@ config = {
     "weight_decay": weight_decay,
     "clip_advantages": clip_advantages,
     "clip_ratio": clip_ratio,
+    "mean_zone_interest_sampling": mean_zone_interest_sampling,
     "ddpm_ckpt": ddpm_ckpt,
     "resume_from_ckpt": resume_from_ckpt,
     "manual_best_reward": manual_best_reward,
@@ -397,7 +404,8 @@ for epoch in master_bar(range(num_epochs)):
             image_pipe,
             device,
             epoch,
-            num_epochs)
+            num_epochs,
+            mean_zone_interest_sampling)
 
         # compute reward on the final step (sample), and obtain advantages
         batch_rewards = reward_model(batch_all_step_preds[-1])

@@ -127,6 +127,7 @@ def improved_sample_from_ddpm_celebahq(
     device,
     epoch,
     num_epochs,
+    mean_zone_interest_sampling,
     eta=1,
     random_seed=None,
 ):
@@ -159,7 +160,7 @@ def improved_sample_from_ddpm_celebahq(
 
     # save initial state x_T and intermediate steps, saave log_probs for the trajectory
     trajectory, log_probs = [xt], []
-    initiate_train_steps = sample_timesteps(num_samples, scheduler.config.num_train_timesteps, epoch, 30, 40, 30, 40, device)
+    initiate_train_steps = sample_timesteps(num_samples, scheduler.config.num_train_timesteps, epoch, num_epochs, mean_zone_interest_sampling, 40, 30, 40, device)
 
     for _, t in enumerate(progress_bar(scheduler.timesteps)):
         # [S] scale input based on the timestep
