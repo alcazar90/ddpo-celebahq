@@ -127,6 +127,7 @@ def compute_loss_new_modified(
     x_t,
     original_log_probs,
     advantages,
+    initiate_train_step,
     clip_advantages,
     clip_ratio,
     image_pipe,
@@ -158,7 +159,9 @@ def compute_loss_new_modified(
     num_inference_steps = scheduler.num_inference_steps
     loss_value = 0.0
     logr = 0.0
-    for i, t in enumerate(scheduler.timesteps):
+    # for i, t in enumerate(scheduler.timesteps):
+    for i in range(initiate_train_step, len(scheduler.timesteps)):
+        t = scheduler.timesteps[i]
         clipped_advantages = torch.clip(
             advantages,
             -clip_advantages,

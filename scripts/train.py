@@ -13,6 +13,7 @@ from tqdm.auto import tqdm
 
 from ddpo.config import Task
 from ddpo.ddpo import (
+    compute_loss_new_modified,
     compute_loss,
     evaluation_loop,
     standardize,
@@ -470,10 +471,11 @@ for epoch in master_bar(range(num_epochs)):
             optimizer.zero_grad()
 
             # Obtain the loss value and the ratio of the importance weight
-            loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
+            loss, prob_ratio, pct_clipped_ratios, KL = compute_loss_new_modified(
                 all_step_preds_chunked[i],
                 log_probs_chunked[i],
                 advantages_chunked[i],
+                all_initiate_train_steps_chunked[i],
                 clip_advantages,
                 clip_ratio,
                 image_pipe,
