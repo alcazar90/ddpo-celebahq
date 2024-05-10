@@ -470,10 +470,10 @@ for epoch in master_bar(range(num_epochs)):
     for inner_epoch in progress_bar(range(num_inner_epochs)):
         # chunk them into batches
         all_step_preds_chunked = torch.chunk(all_step_preds, num_batches, dim=1)
+        print("Length of all_step_preds_chunked: ", len(all_step_preds_chunked))
         log_probs_chunked = torch.chunk(log_probs, num_batches, dim=1)
         advantages_chunked = torch.chunk(advantages, num_batches, dim=0)
         all_initiate_train_steps_chunked = torch.chunk(all_initiate_train_steps, num_batches, dim=0)
-        print("Length of all_step_preds_chunked: ", len(all_step_preds_chunked))
 
         loss_value = 0.0
         for i in progress_bar(range(len(all_step_preds_chunked))):
