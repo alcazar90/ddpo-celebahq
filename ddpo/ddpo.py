@@ -158,7 +158,7 @@ def compute_loss_new_modified(
     unet = image_pipe.unet.to(device)
     num_inference_steps = scheduler.num_inference_steps
     loss_value = 0.0
-    logr = 0.0
+    logr = torch.tensor(0.0, device=device)
     # for i, t in enumerate(scheduler.timesteps):
     for i in range(initiate_train_step, len(scheduler.timesteps)):
         t = scheduler.timesteps[i]
