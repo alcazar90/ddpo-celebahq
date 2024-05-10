@@ -304,7 +304,7 @@ def sample_timesteps(num_samples, num_timesteps, current_iteration, target_itera
     sampled_timesteps = torch.multinomial(mixed_probs, num_samples, replacement=True)
 
     # Compute and return the mean of the sampled timesteps
-    # mean_sampled_timesteps = sampled_timesteps.float().mean().item()
+    mean_sampled_timesteps = sampled_timesteps.float().mean().item()
     mean_sampled_timesteps = max(0, min(mean_sampled_timesteps, len(scheduler.timesteps) - 1))
 
     return int(mean_sampled_timesteps)
