@@ -282,7 +282,7 @@ def sample_data_from_celebahq(
     return obs
 
 
-def sample_timesteps(num_samples, num_timesteps, current_iteration, target_iteration, scheduler, mu=30, variance=40, min_clip=30, max_clip=40, device='cpu'):
+def sample_timesteps(num_samples, num_timesteps, current_iteration, target_iteration, scheduler, mu=30, variance=40, min_clip=39, max_clip=41, device='cpu'):
     sigma = variance  # Standard deviation for the Gaussian distribution
     gamma = current_iteration / target_iteration  # Blend ratio
 
