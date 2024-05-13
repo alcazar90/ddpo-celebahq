@@ -331,6 +331,6 @@ def sample_from_segments(num_samples, num_timesteps, current_iteration, target_i
     # Sample from the uniform distribution over the current segment
     sampled_timesteps = segment_timesteps[torch.randint(len(segment_timesteps), (num_samples,))]
 
-    sampled_timesteps_list = sampled_timesteps.tolist()
+    sampled_timesteps_list = sampled_timesteps.flatten().tolist()
     
     return sampled_timesteps_list
