@@ -329,9 +329,10 @@ def sample_from_segments(num_samples, num_timesteps, current_iteration, target_i
     segment_timesteps = torch.arange(segment_start, segment_end, device=device)
     
     # Sample from the uniform distribution over the current segment
-    sampled_timesteps = segment_timesteps[torch.randint(len(segment_timesteps), (num_samples,))]
+    sampled_indices = torch.randint(len(segment_timesteps), (num_samples,))  # Get random indices
+    sampled_timesteps = segment_timesteps[sampled_indices]
 
-    # Convert the sampled timesteps to a list
-    sampled_timesteps_list  = [int(x) for x in sampled_timesteps]
+    # Convert the sampled timesteps to a list of integers
+    sampled_timesteps_list = [int(x.item()) for x in sampled_timesteps]  # Convert each tensor element to int
     
     return sampled_timesteps_list
