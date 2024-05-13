@@ -338,4 +338,4 @@ def sample_from_segments(num_samples, num_timesteps, current_iteration, target_i
     sampled_timesteps_list = [sampled_timesteps[i].item() for i in range(sampled_timesteps.size(0))]
     print("sampled timestep list",sampled_timesteps_list)
     
-    return sampled_timesteps_list
+    return sampled_timesteps_list[0]
