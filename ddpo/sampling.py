@@ -128,6 +128,7 @@ def improved_sample_from_ddpm_celebahq(
     epoch,
     num_epochs,
     mean_zone_interest_sampling,
+    num_of_segments,
     eta=1,
     random_seed=None,
 ):
@@ -160,7 +161,8 @@ def improved_sample_from_ddpm_celebahq(
 
     # save initial state x_T and intermediate steps, saave log_probs for the trajectory
     trajectory, log_probs = [xt], []
-    initiate_train_steps = sample_timesteps(num_samples, len(scheduler.timesteps), epoch, num_epochs,scheduler, mean_zone_interest_sampling, 40, 39, 41, device)
+    # initiate_train_steps = sample_timesteps(num_samples, len(scheduler.timesteps), epoch, num_epochs,scheduler, mean_zone_interest_sampling, 40, 39, 41, device)
+    initiate_train_steps  = sample_from_segments(num_samples, len(scheduler.timesteps), epoch, num_epochs, device, num_segments=num_of_segments)
 
     for _, t in enumerate(progress_bar(scheduler.timesteps)):
         # [S] scale input based on the timestep
@@ -308,3 +310,25 @@ def sample_timesteps(num_samples, num_timesteps, current_iteration, target_itera
     mean_sampled_timesteps = max(0, min(mean_sampled_timesteps, len(scheduler.timesteps) - 1))
 
     return int(len(scheduler.timesteps)) - int(mean_sampled_timesteps)
+
+
+def sample_from_segments(num_samples, num_timesteps, current_iteration, target_iteration, device, num_segments=10):
+    # Calculate the size of each segment
+    segment_size = num_timesteps // num_segments
+    
+    # Determine which segment to sample from based on the current iteration
+    iterations_per_segment = target_iteration // num_segments
+    current_segment_index = current_iteration // iterations_per_segment
+    current_segment_index = min(current_segment_index, num_segments - 1)  # Ensure it doesn't go out of range
+    
+    # Define the start and end of the current segment
+    segment_start = current_segment_index * segment_size
+    segment_end = segment_start + segment_size
+    
+    # Create a tensor of timesteps for the current segment
+    segment_timesteps = torch.arange(segment_start, segment_end, device=device)
+    
+    # Sample from the uniform distribution over the current segment
+    sampled_timesteps = segment_timesteps[torch.randint(len(segment_timesteps), (num_samples,))]
+    
+    return sampled_timesteps
