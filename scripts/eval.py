@@ -87,8 +87,12 @@ parser.add_argument(
     type=float,
     default=-1.0,
 )
-
-
+parser.add_argument(
+    "--eval_seed",
+    type=str,
+    default="620",
+    help="Comma-separated list of seeds for initializing random number generation for reproducibility.",
+)
 # parse the arguments
 args = parser.parse_args()
 num_samples = args.num_samples
@@ -102,7 +106,7 @@ output_path = args.output_path
 device = args.device
 threshold = args.threshold
 punishment = args.punishment
-
+eval_seeds = list(map(int, args.eval_seed.split(',')))
 
 # Verify if file and folder exists for read and write
 # ------------------------------------------------------------------------------
@@ -198,7 +202,8 @@ elif task == Task.INCOMPRESSIBILITY:
 # ------------------------------------------------------------------------------
 count = 0
 seeds = []
-for seed in metadata.loc[:, "random_seed"]:
+# for seed in metadata.loc[:, "random_seed"]:
+for seed in eval_seeds:
     logging.info("Starting sampling process #%s", count + 1)
 
     # check if we have reached the number of batches
