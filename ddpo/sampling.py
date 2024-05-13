@@ -333,6 +333,6 @@ def sample_from_segments(num_samples, num_timesteps, current_iteration, target_i
     sampled_timesteps = segment_timesteps[sampled_indices]
 
     # Convert the sampled timesteps to a list of integers
-    sampled_timesteps_list = [int(x.item()) for x in sampled_timesteps]  # Convert each tensor element to int
+    sampled_timesteps_list = [int(x.item()[0]) for x in sampled_timesteps]  # Convert each tensor element to int
     
     return sampled_timesteps_list
