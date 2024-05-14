@@ -267,9 +267,9 @@ def compute_loss_new_modified_cliped_ratio(
     for i in range(initiate_train_step, len(scheduler.timesteps)):
         t = scheduler.timesteps[i]
         try:
-            ratio_clip = len(scheduler.timesteps)/len(range(initiate_train_step, len(scheduler.timesteps)))
+            ratio_clip = len(range(initiate_train_step, len(scheduler.timesteps)))/len(scheduler.timesteps)
         except ZeroDivisionError:
-            ratio_clip = len(scheduler.timesteps)/(len(range(initiate_train_step, len(scheduler.timesteps)))+1)
+            ratio_clip = len(range(initiate_train_step, len(scheduler.timesteps)))/len(scheduler.timesteps)
         clipped_advantages = torch.clip(
             advantages,
             -(clip_advantages*ratio_clip),
