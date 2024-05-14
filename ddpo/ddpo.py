@@ -227,6 +227,111 @@ def compute_loss_new_modified(
     k3 = (logr.exp() - 1) - logr
     return loss_value, ratio, pct_clipped_ratios, k3.mean().item()
 
+def compute_loss_new_modified_cliped_ratio(
+    x_t,
+    original_log_probs,
+    advantages,
+    initiate_train_step,
+    clip_advantages,
+    clip_ratio,
+    image_pipe,
+    scheduler,
+    device="cuda",
+    eta=1,
+):
+    """Compute DDPO_is loss for a batch of samples.
+
+    Args:
+        x_t (torch.Tensor): The input samples for the current timestep.
+        original_log_probs (torch.Tensor): The log probabilities of the original policy.
+        advantages (torch.Tensor): The advantages for each sample.
+        clip_advantages (float): The maximum value to clip the advantages.
+        clip_ratio (float): The maximum value to clip the ratio.
+        image_pipe (ImagePipe): The image processing pipeline.
+        scheduler (Scheduler): The scheduler for the DDPO algorithm.
+        device (torch.device): The device to perform computations on.
+        eta (float, optional): The scaling factor for the standard deviation. Defaults to 1.
+
+    Returns:
+        float: The computed loss value.
+        torch.Tensor: The ratio of probabilities between the current policy and the original policy.
+        float: The percentage of clipped ratios.
+        float: The mean KL divergence between the current policy and the original policy.
+
+    """
+    unet = image_pipe.unet.to(device)
+    num_inference_steps = scheduler.num_inference_steps
+    loss_value = 0.0
+    logr = torch.tensor(0.0, device=device)
+    # for i, t in enumerate(scheduler.timesteps):
+    for i in range(initiate_train_step, len(scheduler.timesteps)):
+        t = scheduler.timesteps[i]
+        ratio_clip = len(scheduler.timesteps)/len(range(initiate_train_step, len(scheduler.timesteps)))
+        clipped_advantages = torch.clip(
+            advantages,
+            -(clip_advantages*ratio_clip),
+            (clip_advantages*ratio_clip)
+            ).detach()
+
+        # scale the input by the current timestep t and predict the noise residual
+        input = scheduler.scale_model_input(x_t[i].detach(), t)
+        pred = unet(input, t).sample
+
+        # compute the "previous" noisy sample mean and variance, and get log probs
+        scheduler_output = scheduler.step(
+            pred,
+            t,
+            x_t[i].detach(),
+            eta,
+            variance_noise=0,
+        )
+        t_1 = t - scheduler.config.num_train_timesteps // num_inference_steps
+        variance = scheduler._get_variance(t, t_1)
+        std_dev_t = eta * variance ** (0.5)
+        prev_sample_mean = scheduler_output.prev_sample
+        current_log_probs = calculate_log_probs(
+            x_t[i + 1].detach(),
+            prev_sample_mean,
+            std_dev_t,
+        ).mean(dim=tuple(range(1, prev_sample_mean.ndim)))
+
+        # calculate loss
+        # ratio probability current policy / probability original policy
+        ratio = torch.exp(
+            current_log_probs - original_log_probs[i].detach(),
+        )  # this is the importance ratio of the new policy to the old policy
+        unclipped_loss = -clipped_advantages * ratio  # this is the surrogate loss
+        clipped_loss = -clipped_advantages * torch.clip(
+            ratio,
+            1.0 - clip_ratio,
+            1.0 + clip_ratio,
+        )  # this is the surrogate loss, but with artificially clipped ratios
+
+        # compute % of clipped ratios
+        pct_clipped_ratios = (
+            torch.sum(
+                torch.logical_or(ratio < 1.0 - clip_ratio, ratio > 1.0 + clip_ratio),
+            )
+            / ratio.size(0)
+        ).item()
+
+        loss = torch.max(
+            unclipped_loss,
+            clipped_loss,
+        ).mean()  # we take the max of the clipped and unclipped surrogate losses, and take the mean over the batch
+        loss.backward()  # perform backward here, gets accumulated for all the timesteps
+
+        loss_value += loss.item()
+
+        # calculate KL between the current policy and the original policy
+        logr += torch.sum(
+            current_log_probs - original_log_probs[i].detach(),
+        )
+
+    # Follow approximation KL based on: http://joschu.net/blog/kl-approx.html
+    k3 = (logr.exp() - 1) - logr
+    return loss_value, ratio, pct_clipped_ratios, k3.mean().item()
+
 
 @torch.no_grad()
 def evaluation_loop(
