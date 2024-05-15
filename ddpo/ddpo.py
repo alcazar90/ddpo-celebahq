@@ -306,14 +306,14 @@ def compute_loss_new_modified_cliped_ratio(
         unclipped_loss = -clipped_advantages * ratio  # this is the surrogate loss
         clipped_loss = -clipped_advantages * torch.clip(
             ratio,
-            1.0 - clip_ratio,
-            1.0 + clip_ratio,
+            1.0 - clip_ratio*ratio_clip,
+            1.0 + clip_ratio*ratio_clip,
         )  # this is the surrogate loss, but with artificially clipped ratios
 
         # compute % of clipped ratios
         pct_clipped_ratios = (
             torch.sum(
-                torch.logical_or(ratio < 1.0 - clip_ratio, ratio > 1.0 + clip_ratio),
+                torch.logical_or(ratio < 1.0 - clip_ratio*ratio_clip, ratio > 1.0 + clip_ratio*ratio_clip),
             )
             / ratio.size(0)
         ).item()

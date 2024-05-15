@@ -504,7 +504,7 @@ for epoch in master_bar(range(num_epochs)):
             optimizer.zero_grad()
 
             # Obtain the loss value and the ratio of the importance weight
-            loss, prob_ratio, pct_clipped_ratios, KL = compute_loss_new_modified(
+            loss, prob_ratio, pct_clipped_ratios, KL = compute_loss_new_modified_cliped_ratio(
                 all_step_preds_chunked[i],
                 log_probs_chunked[i],
                 advantages_chunked[i],
