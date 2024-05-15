@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import ast
 
 import matplotlib.pyplot as plt
 import torch
@@ -114,6 +115,16 @@ parser.add_argument(
     default=10,
 )
 parser.add_argument(
+    "--clusters",
+    type=str,
+    default="[(0,20),(20,40)]",
+)
+parser.add_argument(
+    "--number_iters_per_cluster",
+    type=str,
+    default="[35,35]",
+)
+parser.add_argument(
     "--ddpm_ckpt",
     type=str,
     default="google/ddpm-celebahq-256",
@@ -190,6 +201,8 @@ clip_advantages = args.clip_advantages
 clip_ratio = args.clip_ratio
 mean_zone_interest_sampling = args.mean_zone_interest_sampling
 num_of_segments = args.num_of_segments
+clusters = ast.literal_eval(args.clusters)
+num_iters_per_cluster = ast.literal_eval(args.number_iters_per_cluster)
 ddpm_ckpt = args.ddpm_ckpt
 resume_from_ckpt = args.resume_from_ckpt
 manual_best_reward = args.manual_best_reward
@@ -414,7 +427,9 @@ for epoch in master_bar(range(num_epochs)):
             epoch,
             num_epochs,
             mean_zone_interest_sampling,
-            num_of_segments)
+            num_of_segments,
+            clusters,
+            num_iters_per_cluster)
 
         # compute reward on the final step (sample), and obtain advantages
         batch_rewards = reward_model(batch_all_step_preds[-1])
@@ -489,7 +504,7 @@ for epoch in master_bar(range(num_epochs)):
             optimizer.zero_grad()
 
             # Obtain the loss value and the ratio of the importance weight
-            loss, prob_ratio, pct_clipped_ratios, KL = compute_loss_new_modified_cliped_ratio(
+            loss, prob_ratio, pct_clipped_ratios, KL = compute_loss_new_modified(
                 all_step_preds_chunked[i],
                 log_probs_chunked[i],
                 advantages_chunked[i],

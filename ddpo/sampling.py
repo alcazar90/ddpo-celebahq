@@ -130,6 +130,8 @@ def improved_sample_from_ddpm_celebahq(
     num_epochs,
     mean_zone_interest_sampling,
     num_of_segments,
+    clusters,
+    n_iters,
     eta=1,
     random_seed=None,
 ):
@@ -163,7 +165,8 @@ def improved_sample_from_ddpm_celebahq(
     # save initial state x_T and intermediate steps, saave log_probs for the trajectory
     trajectory, log_probs = [xt], []
     # initiate_train_steps = sample_timesteps(num_samples, len(scheduler.timesteps), epoch, num_epochs,scheduler, mean_zone_interest_sampling, 40, 39, 41, device)
-    initiate_train_steps  = sample_from_segments(num_samples, len(scheduler.timesteps), epoch, num_epochs, device, num_segments=num_of_segments)
+    initiate_train_steps  = sample_from_clusters(num_samples,epoch, num_epochs,clusters,n_iters, device)
+    # (num_samples, current_iteration, total_epochs, clusters, n_iters, device)
 
     for _, t in enumerate(progress_bar(scheduler.timesteps)):
         # [S] scale input based on the timestep
@@ -339,3 +342,48 @@ def sample_from_segments(num_samples, num_timesteps, current_iteration, target_i
     print("sampled timestep list",sampled_timesteps_list)
     
     return sampled_timesteps_list[0]
+
+
+def sample_from_clusters(num_samples, current_iteration, total_epochs, clusters, n_iters, device):
+    assert sum(n_iters) == total_epochs, "Total sum of n_iters must be equal to total_epochs"
+    assert len(n_iters) == len(clusters), "Length of n_iters must be equal to length of clusters"
+
+    # Compute index_iters based on the example given on the whiteboard
+    index_iters = []
+    for i, times in enumerate(n_iters):
+        index_iters.extend([i] * times)
+
+    # Select the cluster based on the current epoch using index_iters
+    cluster_index = index_iters[current_iteration]
+    cluster = clusters[cluster_index]
+
+    # Determine the format of the cluster and create a tensor of timesteps
+    if isinstance(cluster, tuple):
+        # Tuple format: represents a range (start, end)
+        segment_start, segment_end = cluster
+        segment_timesteps = torch.arange(segment_start, segment_end, device=device)
+    elif isinstance(cluster, list):
+        # List format: explicit list of timesteps
+        segment_timesteps = torch.tensor(cluster, device=device)
+    else:
+        raise ValueError("Cluster format not recognized. Must be a tuple or a list.")
+
+    # Sample from the uniform distribution over the current segment
+    sampled_indices = torch.randint(len(segment_timesteps), (num_samples,))
+    sampled_timesteps = segment_timesteps[sampled_indices]
+
+    return sampled_timesteps[0].item()  # Return the first value of the sampling list
+
+# # Test parameters
+# clusters = [(0, 3), (4, 7), (8, 11), (12, 15), (16, 19)]
+# n_iters = [5, 0, 5, 0, 5]
+# total_epochs = 15
+# num_steps = 10  # New number of samples
+# test_results = []
+
+# # Run the test for each epoch
+# for current_epoch in range(total_epochs):
+#     first_sampled_timestep = initial_step_sampling(num_steps, current_epoch, total_epochs, clusters, n_iters, device='cpu')
+#     test_results.append(f"Epoch {current_epoch}: First Sampled Timestep - {first_sampled_timestep}")
+
+# test_results
