@@ -92,7 +92,7 @@ parser.add_argument(
 parser.add_argument(
     "--weight_decay",
     type=float,
-    default=1e-4,
+    default=1e-3,
 )
 parser.add_argument(
     "--clip_advantages",
