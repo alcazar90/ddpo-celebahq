@@ -271,13 +271,13 @@ def improved_sample_from_ddpm_celebahq_initial_step(
     # save initial state x_T and intermediate steps, saave log_probs for the trajectory
     trajectory, log_probs = [], []
 
-    for _ in range(len(scheduler.timesteps)- initiate_train_steps - 1):
+    for _ in range(initiate_train_steps):
         empty_sample = torch.zeros_like(xt).to(device)
         trajectory.append(empty_sample)
     
     trajectory.append(xt)
     
-    for _ in range(len(scheduler.timesteps)-initiate_train_steps):
+    for _ in range(initiate_train_steps):
         empty_log_prob = torch.zeros((num_samples,)).to(device)
         log_probs.append(empty_log_prob)
     # initiate_train_steps = sample_timesteps(num_samples, len(scheduler.timesteps), epoch, num_epochs,scheduler, mean_zone_interest_sampling, 40, 39, 41, device)
