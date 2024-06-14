@@ -92,13 +92,13 @@ parser.add_argument(
     "--initial_lr",
     type=float,
     default=9e-8,
-    help="The initial learning rate.",
+    help="The initial learning rate. If the initial_lr is equal to the peak_lr, the learning rate is constant",
 )
 parser.add_argument(
     "--peak_lr",
     type=float,
     default=6e-7,
-    help="The peak learning rate at the end of the linear warmup phase.",
+    help="The peak learning rate at the end of the linear warmup phase. If the initial_lr is equal to the peak_lr, the learning rate is constant.",
 )
 parser.add_argument(
     "--warmup_pct",
