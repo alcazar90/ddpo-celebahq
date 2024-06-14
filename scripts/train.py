@@ -259,6 +259,11 @@ if task in (Task.UNDER30, Task.OVER50):
 
 logging.info("Number batches (`num_samples_per_epoch / batch_size`): %s", num_batches)
 
+# NOTE: if (initial_lr == peark_lr) -> the learning rate is constant. Therefore,
+# the warmup_pct is not used and is set to None.
+if initial_lr == peak_lr:
+    config["warmup_pct"] = None
+
 
 # Matplotlib settings-----------------------------------------------------------
 plt.rcParams["figure.max_open_warning"] = (
@@ -380,11 +385,19 @@ if resume_from_wandb is not None:
 total_training_steps = (
     num_epochs * num_inner_epochs * num_batches
 )  # number of time that parameters are update
-warmup_steps = int(warmup_pct * total_training_steps)
-warmup_steps = 1 if warmup_steps < 1 else warmup_steps  # avoid ZeroDivisionError
-min_lr = 0.1 * initial_lr  # possible an hyperparameter...
-lr_increment = (peak_lr - initial_lr) / warmup_steps
 global_step = -1  # global lr counter for the run (training experiment)
+
+# Set warmup_steps to 0, lr_increment to 0, and min_lr to initial_lr if the
+# learning is contsant.
+if initial_lr == peak_lr:
+    warmup_steps = 0
+    lr_increment = 0
+    min_lr = initial_lr
+else:
+    warmup_steps = int(warmup_pct * total_training_steps)
+    warmup_steps = 1 if warmup_steps < 1 else warmup_steps  # avoid ZeroDivisionError
+    min_lr = 0.1 * initial_lr  # possible an hyperparameter...
+    lr_increment = (peak_lr - initial_lr) / warmup_steps
 
 logging.info(
     "Total training steps: %s | warmup steps: %s | lr increment: %s | min lr: %s",
@@ -529,30 +542,41 @@ for epoch in master_bar(range(num_epochs)):
             optimizer.zero_grad()
             global_step += 1  # lr counter
 
-            # Adjust the learning rate based on the current phase: warmup/cosine annealing
-            if global_step < warmup_steps:
-                # Linear warmup
-                lr = initial_lr + global_step * lr_increment
+            if initial_lr == peak_lr:
+                # Skip the warmup phase and cosine annealing if the initial_lr
+                # is equal to the peak_lr (fix learning rate)
+                lr = initial_lr
                 logging.info(
-                    "training step %s / %s, lr in warmup phase: %s",
+                    "training step %s / %s, lr constant: %s",
                     global_step,
                     total_training_steps,
                     lr,
                 )
             else:
-                # Cosine annealing after warmup
-                progress = (global_step - warmup_steps) / (
-                    total_training_steps - warmup_steps
-                )
-                lr = min_lr + (peak_lr - min_lr) * 0.5 * (
-                    1 + math.cos(math.pi * progress)
-                )
-                logging.info(
-                    "training step %s / %s, lr in cosine annealing phase: %s",
-                    global_step,
-                    total_training_steps,
-                    lr,
-                )
+                # Adjust the learning rate based on the current phase: warmup/cosine annealing
+                if global_step < warmup_steps:
+                    # Linear warmup
+                    lr = initial_lr + global_step * lr_increment
+                    logging.info(
+                        "training step %s / %s, lr in warmup phase: %s",
+                        global_step,
+                        total_training_steps,
+                        lr,
+                    )
+                else:
+                    # Cosine annealing after warmup
+                    progress = (global_step - warmup_steps) / (
+                        total_training_steps - warmup_steps
+                    )
+                    lr = min_lr + (peak_lr - min_lr) * 0.5 * (
+                        1 + math.cos(math.pi * progress)
+                    )
+                    logging.info(
+                        "training step %s / %s, lr in cosine annealing phase: %s",
+                        global_step,
+                        total_training_steps,
+                        lr,
+                    )
 
             # Apply the calculated learning rate to the optimizer
             for param_group in optimizer.param_groups:
