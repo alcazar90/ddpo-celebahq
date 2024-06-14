@@ -49,9 +49,10 @@ def over50_old(
         ).pixel_values.cuda()
         with torch.no_grad():
             outputs = model(inputs).logits
-        probs = outputs.softmax(dim=1)
-        probs = probs[:, 6:].sum(dim=1)
-        return torch.where(probs > threshold, probs, punishment)
+        return outputs[:, 6:].sum(dim=1)
+        # probs = outputs.softmax(dim=1)
+        # probs = probs[:, 6:].sum(dim=1)
+        # return torch.where(probs > threshold, probs, punishment)
 
     return _fn
 
