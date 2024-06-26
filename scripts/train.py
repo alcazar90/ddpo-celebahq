@@ -6,7 +6,9 @@ import math
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
+import torch.nn as nn
 from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm.auto import tqdm
@@ -192,6 +194,32 @@ def parse_args():
     return args
 
 
+# Initialize the value network--------------------------------------------------
+def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+    nn.init.orthogonal_(layer.weight, std)
+    nn.init.constant_(layer.bias, bias_const)
+    return layer
+
+
+class ValueNetwork(nn.Module):
+    """
+    TODO: define the first layer with the number of features of the input
+    """
+
+    def __init__(self):
+        super(ValueNetwork, self).__init__()
+        self.network = nn.Sequential(
+            layer_init(nn.Linear(10, 64)),
+            nn.Tanh(),
+            layer_init(nn.Linear(64, 64)),
+            nn.Tanh(),
+            layer_init(nn.Linear(64, 1)),
+        )
+
+    def get_value(self, x):
+        return self.network(x)
+
+
 if __name__ == "__main__":
     args = parse_args()
 
@@ -307,7 +335,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.AdamW(
         image_pipe.unet.parameters(),
         weight_decay=args.weight_decay,
-    )  # optimizer
+    )
 
     # Resume from ckpt--------------------------------------------------------------
     if args.resume_from_ckpt is not None:
