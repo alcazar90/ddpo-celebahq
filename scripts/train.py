@@ -482,7 +482,7 @@ if __name__ == "__main__":
         if args.eval_every_each_epoch is not None and epoch == 0 and args.wandb_logging:
             logging.info(
                 "Initializing devset with images and reward trajectories using seed %s, prior to the first update of model parameters at epoch %s.",
-                args.eval_random_seed,
+                args.eval_rnd_seed,
                 epoch + 1,
             )
             eval_imgs, eval_rdf, _, _ = evaluation_loop(
@@ -491,7 +491,7 @@ if __name__ == "__main__":
                 image_pipe,
                 args.device,
                 num_samples=args.num_eval_samples,
-                random_seed=args.eval_random_seed,
+                random_seed=args.eval_rnd_seed,
             )
             initial_eval_samples = eval_imgs.detach().cpu().clone()
             initial_eval_trajectories = eval_rdf.copy()
@@ -621,7 +621,7 @@ if __name__ == "__main__":
                 image_pipe,
                 args.device,
                 num_samples=args.num_eval_samples,
-                random_seed=args.eval_random_seed,
+                random_seed=args.eval_rnd_seed,
             )
 
             # log the evaluation results in a wandb.Table
