@@ -43,6 +43,7 @@ def master_bar(iterable, **kwargs):
 
 # Define hyparparameters--------------------------------------------------------
 # Using argparse to define hyperparameters
+# TODO: Complete helps for each hyperparameter
 def parse_args():
     parser = argparse.ArgumentParser(description="Train DDPO")
 
