@@ -5,6 +5,7 @@ import logging
 import pandas as pd
 import torch
 
+from ddpo.config import EPS
 from ddpo.sampling import calculate_log_probs, sample_from_ddpm_celebahq
 
 # Set up logging----------------------------------------------------------------
@@ -21,6 +22,8 @@ def compute_loss(
     image_pipe,
     scheduler,
     value_function,
+    vf_coef,
+    norm_adv=True,
     device="cuda",
     eta=1,
 ):
@@ -36,10 +39,13 @@ def compute_loss(
         image_pipe (ImagePipe): The image processing pipeline.
         scheduler (Scheduler): The scheduler for the DDPO algorithm.
         value_function (torch.nn.Module): The value function to use for computing the advantages.
+        vf_coef (float): The coefficient for the value function loss.
+        norm_adv (bool, optional): Whether to normalize the advantages. Defaults to True.
         device (torch.device): The device to perform computations on.
         eta (float, optional): The scaling factor for the standard deviation. Defaults to 1.
 
     Returns:
+        float: The computed loss value.
         float: The computed policy loss value.
         float: The computed value loss value.
         torch.Tensor: The ratio of probabilities between the current policy and the original policy.
@@ -52,13 +58,16 @@ def compute_loss(
     unet = image_pipe.unet.to(device)
     num_inference_steps = scheduler.num_inference_steps
     pg_loss_value = 0.0
+    value_loss_value = 0.0
     logr = 0.0
 
-    # VERIFY: is to match the returns dimensions (T=41)
-    new_values = [x_t[0]]
     for i, t in enumerate(scheduler.timesteps):
+        if norm_adv:
+            adv = (advantages[i] - advantages[i].mean()) / (advantages[i].std() + EPS)
+        else:
+            adv = advantages[i]
         clipped_advantages = torch.clip(
-            advantages,
+            adv,
             -clip_advantages,
             clip_advantages,
         ).detach()
@@ -120,7 +129,7 @@ def compute_loss(
             clipped_loss,
         ).mean()  # we take the max of the clipped and unclipped surrogate losses, and take the mean over the batch
 
-        pg_loss.backward()  # perform backward here, gets accumulated for all the timesteps
+        # pg_loss.backward()  # perform backward here, gets accumulated for all the timesteps
 
         pg_loss_value += pg_loss.item()
 
@@ -137,21 +146,18 @@ def compute_loss(
             x_t[i] - torch.sqrt(1 - alpha_prod_t) * prev_sample.detach()
         ) / torch.sqrt(alpha_prod_t)
 
-        # update the trajectory
-        new_values.append(denoised_prev_sample)
+        # TODO: add option to clipped version of value loss
+        # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L280
+        value = value_function(denoised_prev_sample)
 
-    # concatenate new denoised states and compute new values
-    new_values = torch.stack([value_function(new_val_mb) for new_val_mb in new_values])
+        # Compute value loss for the current timestep
+        value_loss = 0.5 * ((value - returns[i].detach()) ** 2).mean()
+        # value_loss.backward()
 
-    mb_new_values = new_values.view(-1)
-    mb_returns = returns.view(-1)
+        value_loss_value += value_loss.item()
 
-    # compute the value loss
-    # TODO: add option to clipped version of value loss
-    # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L280
-    value_loss = 0.5 * ((mb_new_values - mb_returns) ** 2).mean()
-
-    value_loss.backward()
+        loss = pg_loss + value_loss * vf_coef
+        loss.backward()
 
     # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html
     # Check also: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L263
@@ -159,8 +165,9 @@ def compute_loss(
     approx_kl = ((logr.exp() - 1) - logr).mean().item()  # k3
 
     return (
+        loss.item(),
         pg_loss_value,
-        value_loss.item(),
+        value_loss_value,
         ratio,
         pct_clipped_ratios,
         approx_kl,

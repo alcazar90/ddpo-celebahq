@@ -14,7 +14,7 @@ from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm.auto import tqdm
 
-from ddpo.config import EPS, Task
+from ddpo.config import Task
 from ddpo.ddpo import (
     compute_loss,
     evaluation_loop,
@@ -60,6 +60,12 @@ def parse_args():
         help="Save the model (and optimizer) in wandb as an artifact.",
     )
     parser.add_argument(
+        "--norm-adv",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Toggles advantages normalization",
+    )
+    parser.add_argument(
         "--task",
         type=Task,
         choices=list(Task),
@@ -98,10 +104,16 @@ def parse_args():
         help="Discounting factor for the rewards. Common values are 0.9 - 0.99.",
     )
     parser.add_argument(
-        "--value_lr",
+        "--max_grad_norm",
         type=float,
-        default=1e-4,
-        help="The learning rate for the value network. For now we use a fixed learning rate for the value network.",
+        default=0.5,
+        help="the maximum norm for the gradient clipping",
+    )
+    parser.add_argument(
+        "--vf_coef",
+        type=float,
+        default=0.5,
+        help="coefficient of the value function",
     )
     parser.add_argument(
         "--initial_lr",
@@ -122,16 +134,10 @@ def parse_args():
         help="The percentage of training steps to use for learning rate warmup. Common values are 0.1\% - 10\%. (default: 10%)",
     )
     parser.add_argument(
-        "--policy_weight_decay",
+        "--weight_decay",
         type=float,
         default=1e-4,
         help="The weight decay for the ADAM optimizer used to update the policy network. Common values are 1e-4 - 1e-6.",
-    )
-    parser.add_argument(
-        "--value_weight_decay",
-        type=float,
-        default=1e-4,
-        help="The weight decay for the ADAM optimizer used to update the value network. Common values are 1e-4 - 1e-6.",
     )
     parser.add_argument(
         "--clip_advantages",
@@ -372,19 +378,16 @@ if __name__ == "__main__":
             device=args.device,
         )
 
-    # Initialize Policy (diffusion) optimizer
-    policy_optimizer = torch.optim.AdamW(
-        image_pipe.unet.parameters(),
-        weight_decay=args.policy_weight_decay,
-    )
-
     # NOTE: input shape of 1st layer fixed in the ValueNetwork arquitecture
     value_network = ValueNetwork().to(args.device)
 
-    value_optimizer = torch.optim.Adam(
-        value_network.parameters(),
-        lr=args.value_lr,
-        weight_decay=args.value_weight_decay,
+    combined_parameters = list(image_pipe.unet.parameters()) + list(
+        value_network.parameters()
+    )
+
+    optimizer = torch.optim.Adam(
+        combined_parameters,
+        weight_decay=args.weight_decay,
     )
 
     # Resume from ckpt--------------------------------------------------------------
@@ -395,9 +398,8 @@ if __name__ == "__main__":
             wandb.run.notes = f"Resuming training from ckpt: {args.resume_from_ckpt}"
         ckpt = torch.load(args.resume_from_ckpt, map_location=torch.device(args.device))
         image_pipe.unet.load_state_dict(ckpt["policy_model_state_dict"])
-        policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
         value_network.load_state_dict(ckpt["value_model_state_dict"])
-        value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
     if args.resume_from_wandb is not None:
         logging.info(
@@ -421,9 +423,8 @@ if __name__ == "__main__":
         logging.info(" -> ckpt loading from: %s", ckpt_path)
         ckpt = torch.load(ckpt_path, map_location=torch.device(args.device))
         image_pipe.unet.load_state_dict(ckpt["policy_model_state_dict"])
-        policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
         value_network.load_state_dict(ckpt["value_model_state_dict"])
-        value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
 
     # Learning Rate Setting---------------------------------------------------------
     # learning rate with linear warmpup and half-cosine cycle annealing
@@ -448,12 +449,11 @@ if __name__ == "__main__":
         lr_increment = (args.peak_lr - args.initial_lr) / warmup_steps
 
     logging.info(
-        "Total training steps: %s | policy warmup steps: %s | policy lr increment: %s | policy min lr: %s | value lr: %s",
+        "Total training steps: %s | warmup steps: %s | lr increment: %s | policy min lr: %s",
         total_training_steps,
         warmup_steps,
         lr_increment,
         min_lr,
-        args.value_lr,
     )
     # Training Loop-----------------------------------------------------------------
     track_lrs = []
@@ -461,6 +461,7 @@ if __name__ == "__main__":
     mean_values = []
     mean_returns = []
     mean_advantages = []
+    epoch_global_loss = []
     epoch_policy_loss = []
     epoch_value_loss = []
     best_reward = -float("inf")  # initialize best reward
@@ -588,9 +589,6 @@ if __name__ == "__main__":
         all_rewards = torch.cat(all_rewards)
         values = torch.cat(all_value_estimates)
 
-        # standardize the advantages across the entire collected data
-        advantages = (advantages - advantages.mean()) / (advantages.std() + EPS)
-
         # save the mean and std of reward, value, reeturns, and advantages of the current samples
         mean_rewards.append(all_rewards.mean().item())
         logging.info(" -> mean reward: %s", mean_rewards[-1])
@@ -682,6 +680,7 @@ if __name__ == "__main__":
         # ----------------------------------------------------------------------
         # For num_inner_epochs times, we go over each sample compute the loss,
         # backpropagate, and update our diffusion model.
+        global_inner_loop_losses = []
         pg_inner_loop_losses = []
         value_inner_loop_losses = []
 
@@ -699,14 +698,14 @@ if __name__ == "__main__":
             advantages_chunked = torch.chunk(advantages, args.num_batches, dim=0)
             returns_chunked = torch.chunk(returns, args.num_batches, dim=0)
 
+            global_loss_value = 0.0
             pg_loss_value = 0.0
             value_loss_value = 0.0
 
             logging.info("Iterate over the mini batches...")
             # now we start to iterate over the batches (manual dataloader)
             for i in progress_bar(range(len(all_step_preds_chunked))):
-                policy_optimizer.zero_grad()
-                value_optimizer.zero_grad()
+                optimizer.zero_grad()
                 global_step += 1  # lr counter
 
                 logging.info("Setting policy learning rate given global step")
@@ -726,7 +725,7 @@ if __name__ == "__main__":
                         # Linear warmup
                         lr = args.initial_lr + global_step * lr_increment
                         logging.info(
-                            "training step %s / %s, policy lr in warmup phase: %s",
+                            "training step %s / %s, lr in warmup phase: %s",
                             global_step + 1,
                             total_training_steps,
                             lr,
@@ -740,49 +739,72 @@ if __name__ == "__main__":
                             1 + math.cos(math.pi * progress)
                         )
                         logging.info(
-                            "training step %s / %s, policy lr in cosine annealing phase: %s",
+                            "training step %s / %s, lr in cosine annealing phase: %s",
                             global_step + 1,
                             total_training_steps,
                             lr,
                         )
 
-                # Apply the calculated learning rate to the policy optimizer
-                for param_group in policy_optimizer.param_groups:
+                # Apply the calculated learning rate to the optimizer
+                for param_group in optimizer.param_groups:
                     param_group["lr"] = lr
-                track_lrs.append(policy_optimizer.param_groups[0]["lr"])
+                track_lrs.append(optimizer.param_groups[0]["lr"])
 
                 # Obtain the loss value and the ratio of the importance weight
-                pg_loss, value_loss, prob_ratio, pct_clipped_ratios, KL, old_KL = (
-                    compute_loss(
-                        all_step_preds_chunked[i],
-                        log_probs_chunked[i],
-                        advantages_chunked[i],
-                        returns_chunked[i],
-                        args.clip_advantages,
-                        args.clip_ratio,
-                        image_pipe,
-                        scheduler,
-                        value_network,
-                        args.device,
-                    )
+                (
+                    loss,
+                    pg_loss,
+                    value_loss,
+                    prob_ratio,
+                    pct_clipped_ratios,
+                    KL,
+                    old_KL,
+                ) = compute_loss(
+                    all_step_preds_chunked[i],
+                    log_probs_chunked[i],
+                    advantages_chunked[i],
+                    returns_chunked[i],
+                    args.clip_advantages,
+                    args.clip_ratio,
+                    image_pipe,
+                    scheduler,
+                    value_network,
+                    args.vf_coef,
+                    args.norm_adv,
+                    args.device,
                 )  # loss.backward happens inside
 
-                # Apply gradient clipping after the warmup phase to avoid expliding gradients
-                if global_step > warmup_steps:
-                    torch.nn.utils.clip_grad_norm_(
-                        image_pipe.unet.parameters(),
-                        max_norm=1.0,
-                    )  # gradient clipping
+                # Apply gradient clipping after the warmup phase to avoid exploding gradients
+                # if global_step > warmup_steps:
+                #     torch.nn.utils.clip_grad_norm_(
+                #         image_pipe.unet.parameters(),
+                #         max_norm=1.0,
+                #     )  # gradient clipping policy
+                #     torch.nn.utils.clip_grad_norm_(
+                #         value_network.parameters(),
+                #         max_norm=1.0,
+                #     )  # gradient clipping value
 
-                policy_optimizer.step()
-                value_optimizer.step()
+                torch.nn.utils.clip_grad_norm_(
+                    image_pipe.unet.parameters(),
+                    max_norm=args.max_grad_norm,
+                )  # gradient clipping policy
 
+                torch.nn.utils.clip_grad_norm_(
+                    value_network.parameters(),
+                    max_norm=args.max_grad_norm,
+                )  # gradient clipping value
+
+                optimizer.step()
+
+                global_loss_value += loss
                 pg_loss_value += pg_loss
                 value_loss_value += value_loss
 
                 if args.wandb_logging:
                     wandb.log(
                         {
+                            "loss": loss,
                             "policy_loss": pg_loss,
                             "value_loss": value_loss,
                             "pct_clipped_ratios": pct_clipped_ratios,
@@ -793,20 +815,21 @@ if __name__ == "__main__":
                             "old_approx_kl": old_KL,
                             "epoch": epoch,
                             "batch": i,
-                            "policy_learning_rate": lr,
-                            "value_learning_rate": args.value_lr,
+                            "learning_rate": lr,
                             "Steps Per Seconds": int(
                                 global_step + 1 / (time.time() - start_time)
                             ),
                         },
                     )
 
+            global_inner_loop_losses.append(global_loss_value / args.num_batches)
             pg_inner_loop_losses.append(pg_loss_value / args.num_batches)
             value_inner_loop_losses.append(value_loss_value / args.num_batches)
 
             if args.wandb_logging:
                 wandb.log(
                     {
+                        "global loss": global_inner_loop_losses[-1],
                         "average policy loss": pg_inner_loop_losses[-1],
                         "average value loss": value_inner_loop_losses[-1],
                         "inner_epoch": inner_epoch + 1,
@@ -814,12 +837,14 @@ if __name__ == "__main__":
                 )
 
             logging.info(
-                " -> average policy loss: %s | average value loss: %s | inner epoch: %s",
+                " -> average policy loss: %s | average value loss: %s | average global loss: %s | inner epoch: %s",
                 pg_inner_loop_losses[-1],
                 value_inner_loop_losses[-1],
+                global_inner_loop_losses[-1],
                 inner_epoch + 1,
             )
 
+        epoch_global_loss.append(global_inner_loop_losses)
         epoch_policy_loss.append(pg_inner_loop_losses)
         epoch_value_loss.append(value_inner_loop_losses)
 
@@ -830,6 +855,7 @@ if __name__ == "__main__":
         del returns
         del pg_inner_loop_losses
         del value_inner_loop_losses
+        del global_inner_loop_losses
         flush()
 
         # Start evaluation loop (each args.eval_every_each_epoch)
@@ -969,9 +995,8 @@ if __name__ == "__main__":
                 torch.save(
                     {
                         "policy_model_state_dict": image_pipe.unet.state_dict(),
-                        "policy_optimizer_state_dict": policy_optimizer.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
                         "value_model_state_dict": value_network.state_dict(),
-                        "value_optimizer_state_dict": value_optimizer.state_dict(),
                         "best_reward": eval_mean_reward,
                     },
                     ckpt_path,
