@@ -743,7 +743,7 @@ if __name__ == "__main__":
                 # backpropagate the value loss
                 # TODO: move within compute_loss() with pg_loss or compute
                 # pg_loss outside.
-                value_loss.backward()
+                value_loss.backward(retain_graph=True)
 
                 # Apply gradient clipping after the warmup phase to avoid expliding gradients
                 if global_step > warmup_steps:
