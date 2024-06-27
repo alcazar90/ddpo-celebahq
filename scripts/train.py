@@ -396,7 +396,7 @@ if __name__ == "__main__":
         ckpt = torch.load(args.resume_from_ckpt, map_location=torch.device(args.device))
         image_pipe.unet.load_state_dict(ckpt["policy_model_state_dict"])
         policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
-        value_network.load_state_dict(ckpt["value_network_state_dict"])
+        value_network.load_state_dict(ckpt["value_model_state_dict"])
         value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
 
     if args.resume_from_wandb is not None:
@@ -422,7 +422,7 @@ if __name__ == "__main__":
         ckpt = torch.load(ckpt_path, map_location=torch.device(args.device))
         image_pipe.unet.load_state_dict(ckpt["policy_model_state_dict"])
         policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
-        value_network.load_state_dict(ckpt["value_network_state_dict"])
+        value_network.load_state_dict(ckpt["value_model_state_dict"])
         value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
 
     # Learning Rate Setting---------------------------------------------------------
