@@ -24,6 +24,7 @@ def compute_loss(
     scheduler,
     value_function,
     vf_coef,
+    ent_coef,
     clip_vloss=True,
     norm_adv=True,
     device="cuda",
@@ -36,12 +37,14 @@ def compute_loss(
         original_log_probs (torch.Tensor): The log probabilities of the original policy.
         advantages (torch.Tensor): The advantages for each sample.
         returns (torch.Tensor): The returns for each sample.S
+        values (torch.Tensor): The values for each sample.
         clip_advantages (float): The maximum value to clip the advantages.
         clip_coef (float): The maximum value to clip the ratio.
         image_pipe (ImagePipe): The image processing pipeline.
         scheduler (Scheduler): The scheduler for the DDPO algorithm.
         value_function (torch.nn.Module): The value function to use for computing the advantages.
         vf_coef (float): The coefficient for the value function loss.
+        ent_coef (float): The coefficient for the entropy loss.
         norm_adv (bool, optional): Whether to normalize the advantages. Defaults to True.
         device (torch.device): The device to perform computations on.
         eta (float, optional): The scaling factor for the standard deviation. Defaults to 1.
@@ -55,12 +58,11 @@ def compute_loss(
         float: The mean KL divergence between the current policy and the original policy.
 
     """
-    # TODO: captur clipped fraction like in:
-    # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L252
     unet = image_pipe.unet.to(device)
     num_inference_steps = scheduler.num_inference_steps
     pg_loss_value = 0.0
     value_loss_value = 0.0
+    entropy_loss_value = 0.0
     logr = 0.0
 
     for i, t in enumerate(scheduler.timesteps):
@@ -68,6 +70,7 @@ def compute_loss(
             adv = (advantages[i] - advantages[i].mean()) / (advantages[i].std() + EPS)
         else:
             adv = advantages[i]
+
         clipped_advantages = torch.clip(
             adv,
             -clip_advantages,
@@ -106,17 +109,23 @@ def compute_loss(
             std_dev_t,
         ).mean(dim=tuple(range(1, prev_sample_mean.ndim)))
 
-        # calculate loss
-        # ratio probability current policy / probability original policy
-        ratio = torch.exp(
-            current_log_probs - original_log_probs[i].detach(),
-        )  # this is the importance ratio of the new policy to the old policy
-        unclipped_loss = -clipped_advantages * ratio  # this is the surrogate loss
-        clipped_loss = -clipped_advantages * torch.clip(
+        # importance ratio of the new policy to the old policy
+        ratio = torch.exp(current_log_probs - original_log_probs[i].detach())
+
+        # compute entropy loss
+        entropy = -torch.sum(torch.exp(current_log_probs) * current_log_probs, dim=-1)
+        entropy_loss = entropy.mean()
+        entropy_loss_value += entropy_loss.item()
+
+        # policy loss
+        pg_loss1 = -clipped_advantages * ratio  # this is the surrogate loss
+        pg_loss2 = -clipped_advantages * torch.clamp(
             ratio,
             1.0 - clip_coef,
             1.0 + clip_coef,
-        )  # this is the surrogate loss, but with artificially clipped ratios
+        )
+        pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+        pg_loss_value += pg_loss.item()
 
         # compute % of clipped ratios
         pct_clipped_ratios = (
@@ -125,15 +134,6 @@ def compute_loss(
             )
             / ratio.size(0)
         ).item()
-
-        pg_loss = torch.max(
-            unclipped_loss,
-            clipped_loss,
-        ).mean()  # we take the max of the clipped and unclipped surrogate losses, and take the mean over the batch
-
-        # pg_loss.backward()  # perform backward here, gets accumulated for all the timesteps
-
-        pg_loss_value += pg_loss.item()
 
         # calculate KL between the current policy and the original policy
         logr += torch.sum(
@@ -167,7 +167,7 @@ def compute_loss(
 
         value_loss_value += v_loss.item()
 
-        loss = pg_loss + v_loss * vf_coef
+        loss = pg_loss - ent_coef * entropy_loss + v_loss * vf_coef
         loss.backward()
 
     # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html
@@ -179,6 +179,7 @@ def compute_loss(
         loss.item(),
         pg_loss_value,
         value_loss_value,
+        entropy_loss_value,
         ratio,
         pct_clipped_ratios,
         approx_kl,
