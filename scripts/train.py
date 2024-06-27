@@ -919,12 +919,23 @@ if __name__ == "__main__":
             wandb.log({"eval_table": table}, commit=False)
             plt.close()
             eval_mean_reward = eval_rdf.iloc[-1, :].mean()
+            eval_value_mean = eval_value_df.iloc[-1, :].mean()
             logging.info(
-                " -> eval mean reward (%s epoch): %s", epoch + 1, eval_mean_reward
+                " -> eval mean reward | eval value reward (%s epoch): %s | %s",
+                epoch + 1,
+                eval_mean_reward,
+                eval_value_mean,
             )
-            wandb.log({"eval_mean_reward": eval_mean_reward})
+            wandb.log(
+                {
+                    "eval_mean_reward": eval_mean_reward,
+                    "eval_value_df_mean": eval_value_mean,
+                }
+            )
             del eval_imgs
             del eval_rdf
+            del eval_denoised_rdf
+            del eval_value_df
             del eval_logp
             del k
             flush()
