@@ -648,10 +648,6 @@ if __name__ == "__main__":
         del batch_trajectory_advantages
         del batch_final_rewards
         del batch_value_estimates
-        del mean_rewards
-        del mean_values
-        del mean_returns
-        del mean_advantages
         del all_rewards
         del values
         del all_value_estimates
