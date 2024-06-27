@@ -153,9 +153,19 @@ def compute_loss(
 
     value_loss.backward()
 
-    # Follow approximation KL based on: http://joschu.net/blog/kl-approx.html
-    k3 = (logr.exp() - 1) - logr
-    return pg_loss_value, value_loss.item(), ratio, pct_clipped_ratios, k3.mean().item()
+    # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html
+    # Check also: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L263
+    old_approx_kl = (-logr).mean().item()
+    approx_kl = ((logr.exp() - 1) - logr).mean().item()  # k3
+
+    return (
+        pg_loss_value,
+        value_loss.item(),
+        ratio,
+        pct_clipped_ratios,
+        approx_kl,
+        old_approx_kl,
+    )
 
 
 @torch.no_grad()

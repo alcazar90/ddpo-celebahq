@@ -738,17 +738,19 @@ if __name__ == "__main__":
                 track_lrs.append(policy_optimizer.param_groups[0]["lr"])
 
                 # Obtain the loss value and the ratio of the importance weight
-                pg_loss, value_loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
-                    all_step_preds_chunked[i],
-                    log_probs_chunked[i],
-                    advantages_chunked[i],
-                    returns_chunked[i],
-                    args.clip_advantages,
-                    args.clip_ratio,
-                    image_pipe,
-                    scheduler,
-                    value_network,
-                    args.device,
+                pg_loss, value_loss, prob_ratio, pct_clipped_ratios, KL, old_KL = (
+                    compute_loss(
+                        all_step_preds_chunked[i],
+                        log_probs_chunked[i],
+                        advantages_chunked[i],
+                        returns_chunked[i],
+                        args.clip_advantages,
+                        args.clip_ratio,
+                        image_pipe,
+                        scheduler,
+                        value_network,
+                        args.device,
+                    )
                 )  # loss.backward happens inside
 
                 # Apply gradient clipping after the warmup phase to avoid expliding gradients
@@ -773,7 +775,8 @@ if __name__ == "__main__":
                             "prob_ratio": wandb.Histogram(
                                 prob_ratio.detach().cpu().numpy(),
                             ),
-                            "KL (current vs old policy)": KL,
+                            "approx_kl": KL,
+                            "old_approx_kl": old_KL,
                             "epoch": epoch,
                             "batch": i,
                             "policy_learning_rate": lr,
