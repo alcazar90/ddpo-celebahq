@@ -772,7 +772,7 @@ if __name__ == "__main__":
                 if args.wandb_logging:
                     wandb.log(
                         {
-                            "pg_loss": pg_loss,
+                            "policy_loss": pg_loss,
                             "value_loss": value_loss,
                             "pct_clipped_ratios": pct_clipped_ratios,
                             "prob_ratio": wandb.Histogram(
@@ -784,7 +784,7 @@ if __name__ == "__main__":
                             "batch": i,
                             "policy_learning_rate": lr,
                             "value_learning_rate": args.value_lr,
-                            "charts/SPS": int(
+                            "Steps Per Seconds": int(
                                 global_step + 1 / (time.time() - start_time)
                             ),
                         },
@@ -814,7 +814,7 @@ if __name__ == "__main__":
 
         # Start evaluation loop (each args.eval_every_each_epoch)
         # ----------------------------------------------------------------------
-        # TODO: Evaluate new metrics such as discounted return etc...
+        # TODO: Compute value estimation and advantage in the evaluation loop
         if (
             args.eval_every_each_epoch is not None
             and (((epoch + 1) % args.eval_every_each_epoch) == 0 or epoch == 0)
