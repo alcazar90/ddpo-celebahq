@@ -1,9 +1,14 @@
 """Implementation of the DDPO algorithm."""
 
+import logging
+
 import pandas as pd
 import torch
 
 from ddpo.sampling import calculate_log_probs, sample_from_ddpm_celebahq
+
+# Set up logging----------------------------------------------------------------
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 
 def compute_loss(
@@ -134,7 +139,20 @@ def compute_loss(
         # update the trajectory
         new_values.append(denoised_prev_sample)
 
+    logging.info(
+        f"new_values length: {len(new_values)}, shape of element: {new_values[0].shape}",
+    )
+    logging.info(
+        f"returns shape: {returns.shape}",
+    )
+
     # concatenate new denoised states and compute new values
+    new_values = torch.stack(new_values)
+
+    logging.info(
+        f"new_values shape: {new_values.shape}",
+    )
+
     mb_new_values = value_function(torch.stack(new_values)).view(-1)
     mb_returns = returns.view(-1)
 
