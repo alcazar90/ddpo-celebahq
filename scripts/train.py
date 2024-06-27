@@ -761,7 +761,7 @@ if __name__ == "__main__":
                 value_optimizer.step()
 
                 pg_loss_value += pg_loss
-                value_loss_value += value_loss.item()
+                value_loss_value += value_loss
 
                 if args.wandb_logging:
                     wandb.log(
