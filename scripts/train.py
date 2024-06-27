@@ -657,16 +657,21 @@ if __name__ == "__main__":
                 args.eval_rnd_seed,
                 epoch + 1,
             )
-            eval_imgs, eval_rdf, _, _ = evaluation_loop(
-                reward_model,
-                scheduler,
-                image_pipe,
-                args.device,
-                num_samples=args.num_eval_samples,
-                random_seed=args.eval_rnd_seed,
+            eval_imgs, eval_rdf, eval_denoised_rdf_, eval_value_df, _, _ = (
+                evaluation_loop(
+                    reward_model,
+                    value_network,
+                    scheduler,
+                    image_pipe,
+                    args.device,
+                    num_samples=args.num_eval_samples,
+                    random_seed=args.eval_rnd_seed,
+                )
             )
             initial_eval_samples = eval_imgs.detach().cpu().clone()
             initial_eval_trajectories = eval_rdf.copy()
+            initial_eval_value_df = eval_value_df.copy()
+            initial_eval_denoised_trajectories = eval_denoised_rdf_.copy()
         # ~~ end evaluation step ~~
 
         # Split data into minibatches and update the parameters (exploitation)
@@ -823,13 +828,16 @@ if __name__ == "__main__":
             and args.wandb_logging
         ):
             logging.info("Evaluating model on epoch %s", epoch + 1)
-            eval_imgs, eval_rdf, eval_logp, k = evaluation_loop(
-                reward_model,
-                scheduler,
-                image_pipe,
-                args.device,
-                num_samples=args.num_eval_samples,
-                random_seed=args.eval_rnd_seed,
+            eval_imgs, eval_rdf, eval_denoised_rdf, eval_value_df, eval_logp, k = (
+                evaluation_loop(
+                    reward_model,
+                    value_network,
+                    scheduler,
+                    image_pipe,
+                    args.device,
+                    num_samples=args.num_eval_samples,
+                    random_seed=args.eval_rnd_seed,
+                )
             )
 
             # log the evaluation results in a wandb.Table
@@ -848,19 +856,38 @@ if __name__ == "__main__":
                 o_img,
                 c_img,
                 rc,
-            ) in zip(initial_eval_samples, eval_imgs, eval_rdf):
+                drc,
+                vrc,
+            ) in zip(
+                initial_eval_samples,
+                eval_imgs,
+                eval_rdf,
+                eval_denoised_rdf,
+                eval_value_df,
+            ):
                 # create reward plot trajectory
                 plt.figure(figsize=(10, 4))
+                plt.plot(
+                    eval_denoised_rdf[rc],
+                    color="gainsboro",
+                    label="current denoised rwd trajectory",
+                )
                 plt.plot(
                     eval_rdf[rc],
                     color="mediumseagreen",
                     label="current rwd trajectory",
                 )
                 plt.plot(
+                    initial_eval_denoised_trajectories[rc],
+                    color="lightgrey",
+                    label="initial rwd trajectory",
+                )
+                plt.plot(
                     initial_eval_trajectories[rc],
                     color="indianred",
                     label="initial rwd trajectory",
                 )
+
                 plt.xlim(0, 40)
                 plt.grid(color="lightgrey", linewidth=0.4)
                 plt.legend(frameon=False)
@@ -879,10 +906,12 @@ if __name__ == "__main__":
                             ),
                         ),
                     ),
-                    eval_rdf[rc][-1:].item(),
-                    initial_eval_trajectories[rc][-1:].item(),
-                    eval_rdf[rc][-1:].item()
+                    eval_rdf[rc][-1:].item(),  # current final reward
+                    initial_eval_trajectories[rc][-1:].item(),  # initial final reward
+                    eval_rdf[rc][-1:].item()  # diff reward
                     - initial_eval_trajectories[rc][-1:].item(),
+                    eval_value_df[vrc][-1:].item(),  # current value estimate
+                    initial_eval_value_df[vrc][-1:].item(),  # initial value estimate
                     wandb.Image(
                         plt,
                     ),

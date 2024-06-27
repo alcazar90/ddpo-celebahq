@@ -171,6 +171,7 @@ def compute_loss(
 @torch.no_grad()
 def evaluation_loop(
     reward_function,
+    value_function,
     scheduler,
     image_pipe,
     device="cuda",
@@ -182,6 +183,7 @@ def evaluation_loop(
 
     Args:
         reward_function: The reward function used to compute rewards over the trajectory.
+        value_function: The value function represent the model to estimate the value.
         scheduler: The scheduler used for sampling from the model.
         image_pipe: The image pipeline used for processing images.
         device: The device (CPU or GPU) to perform computations on.
@@ -198,7 +200,7 @@ def evaluation_loop(
     """
     # (1) Obtain sample and latents
     with torch.random.fork_rng():
-        trajectory, _, logp = sample_from_ddpm_celebahq(
+        trajectory, denoised_trajectory, logp = sample_from_ddpm_celebahq(
             num_samples=num_samples,
             scheduler=scheduler,
             image_pipe=image_pipe,
@@ -206,11 +208,13 @@ def evaluation_loop(
             random_seed=random_seed,
         )
 
-    # (2) Compute reward over trajectory
+    # (2) Compute reward over raw and denoised trajectory
     r = [reward_function(t) for t in trajectory]
+    rd = [reward_function(t) for t in denoised_trajectory]
     # rows are t in trajectory, columns are samples ids, and values are the
     # corresponding rewards for the given sample at timestep t
     r_df = pd.DataFrame(torch.vstack(r).detach().cpu().numpy())
+    rd_df = pd.DataFrame(torch.vstack(rd).detach().cpu().numpy())
 
     # (3) Compute the KL with the previous sample set
     k = None
@@ -220,10 +224,13 @@ def evaluation_loop(
         k = k.mean().item()
 
     # (4) TODO: Compute value function over denoised trajectory
+    with value_function.no_grad():
+        v = [value_function(t) for t in denoised_trajectory]
+    v_df = pd.DataFrame(torch.vstack(v).detach().cpu().numpy())
 
-    # (5) TODO: Compute discounted returns
+    # (5) TODO: Compute discounted returns. Useful to have a function for this
 
-    # (6) TODO: Compute advantages
+    # (6) TODO: Compute advantages. Required the returns...
 
     # (7) Return everything...
-    return trajectory[-1], r_df, logp.detach().cpu(), k
+    return trajectory[-1], r_df, rd_df, v_df, logp.detach().cpu(), k
