@@ -684,15 +684,6 @@ if __name__ == "__main__":
             # NOTE: why we chunk the advantages and values across dim=0?
             advantages_chunked = torch.chunk(advantages, args.num_batches, dim=0)
             returns_chunked = torch.chunk(returns, args.num_batches, dim=0)
-            values_chunked = torch.chunk(values, args.num_batches, dim=0)
-
-            logging.info(
-                f"returns_chunked: {len(returns_chunked)}, each shape {returns_chunked[0].shape} "
-            )
-
-            logging.info(
-                f"values_chunked: {len(values_chunked)}, each shape {values_chunked[0].shape} "
-            )
 
             pg_loss_value = 0.0
             value_loss_value = 0.0
