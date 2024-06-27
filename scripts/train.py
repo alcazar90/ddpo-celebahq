@@ -747,6 +747,7 @@ if __name__ == "__main__":
                     args.clip_ratio,
                     image_pipe,
                     scheduler,
+                    value_network,
                     args.device,
                 )  # loss.backward happens inside
 
