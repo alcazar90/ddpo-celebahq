@@ -654,6 +654,7 @@ if __name__ == "__main__":
         del mean_advantages
         del all_rewards
         del values
+        del all_value_estimates
         flush()
 
         # ~~ evaluation step ~~
@@ -831,8 +832,6 @@ if __name__ == "__main__":
         del log_probs
         del advantages
         del returns
-        del all_rewards
-        del all_value_estimates
         del pg_inner_loop_losses
         del value_inner_loop_losses
         flush()
