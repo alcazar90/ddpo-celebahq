@@ -55,7 +55,8 @@ def sample_from_ddpm_celebahq(
 
     Returns:
     -------
-        tensor: A tensor containing the trajectories of the entire batach (T, B, C, H, W).
+        tensor: A tensor containing the trajectories of the entire batch (T, B, C, H, W).
+        tensor: A tensor containing the denoised trajectories of the entire batch (T, B, C, H, W).
         tensor: A tensor containing the log probabilities of the trajectories (T, B).
 
     """
@@ -67,8 +68,8 @@ def sample_from_ddpm_celebahq(
     # initialize a batch of random noise
     xt = torch.randn(num_samples, 3, 256, 256).to(device)  # (B, C, H, W)
 
-    # save initial state x_T and intermediate steps, saave log_probs for the trajectory
-    trajectory, log_probs = [xt], []
+    # save initial state x_T and intermediate steps, save log_probs for the trajectory
+    trajectory, denoised_trajectory, log_probs = [xt], [xt], []
 
     for _, t in enumerate(progress_bar(scheduler.timesteps)):
         # [S] scale input based on the timestep
@@ -100,8 +101,14 @@ def sample_from_ddpm_celebahq(
                 dim=tuple(range(1, prev_sample_mean.ndim)),
             ),
         )
+        # [S] compute denoise prediction (DDIM Eq.9) given the current state:
+        alpha_prod_t = image_pipe.scheduler.alphas_cumprod[t]
+        denoised_prev_sample = (
+            xt - torch.sqrt(1 - alpha_prod_t) * prev_sample
+        ) / torch.sqrt(alpha_prod_t)
 
         trajectory.append(prev_sample)
+        denoised_trajectory.append(denoised_prev_sample)
         xt = prev_sample
 
     # now we will release the VRAM memory deleting the variable bounded to the VRAM and use flush()
@@ -111,13 +118,18 @@ def sample_from_ddpm_celebahq(
     del scheduler_output
     del prev_sample_mean
     del prev_sample
+    del denoised_prev_sample
     del variance
     del std_dev_t
     del num_inference_steps
     flush()
 
-    # The dimensions of the tensor are: (T+1, B, C, H, W), (T, B), (B, 1)
-    return torch.stack(trajectory), torch.stack(log_probs)
+    # Tensor output dimensions: (T+1, B, C, H, W), (T+1, B, C, H, W), (T, B)
+    return (
+        torch.stack(trajectory),
+        torch.stack(denoised_trajectory),
+        torch.stack(log_probs),
+    )
 
 
 @torch.no_grad()

@@ -3,23 +3,7 @@
 import pandas as pd
 import torch
 
-from ddpo.config import EPS
 from ddpo.sampling import calculate_log_probs, sample_from_ddpm_celebahq
-
-
-def standardize(x):
-    """Standardizes the given input array.
-
-    Args:
-    ----
-        x (array-like): The input array to be standardized.
-
-    Returns:
-    -------
-        array-like: The standardized array.
-
-    """
-    return (x - x.mean()) / (x.std() + EPS)
 
 
 def compute_loss(
@@ -55,7 +39,7 @@ def compute_loss(
     """
     unet = image_pipe.unet.to(device)
     num_inference_steps = scheduler.num_inference_steps
-    loss_value = 0.0
+    pg_loss_value = 0.0
     logr = 0.0
     for i, t in enumerate(scheduler.timesteps):
         clipped_advantages = torch.clip(
@@ -106,13 +90,14 @@ def compute_loss(
             / ratio.size(0)
         ).item()
 
-        loss = torch.max(
+        pg_loss = torch.max(
             unclipped_loss,
             clipped_loss,
         ).mean()  # we take the max of the clipped and unclipped surrogate losses, and take the mean over the batch
-        loss.backward()  # perform backward here, gets accumulated for all the timesteps
 
-        loss_value += loss.item()
+        pg_loss.backward()  # perform backward here, gets accumulated for all the timesteps
+
+        pg_loss_value += pg_loss.item()
 
         # calculate KL between the current policy and the original policy
         logr += torch.sum(
@@ -121,7 +106,7 @@ def compute_loss(
 
     # Follow approximation KL based on: http://joschu.net/blog/kl-approx.html
     k3 = (logr.exp() - 1) - logr
-    return loss_value, ratio, pct_clipped_ratios, k3.mean().item()
+    return pg_loss_value, ratio, pct_clipped_ratios, k3.mean().item()
 
 
 @torch.no_grad()

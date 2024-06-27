@@ -13,11 +13,10 @@ from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm.auto import tqdm
 
-from ddpo.config import Task
+from ddpo.config import EPS, Task
 from ddpo.ddpo import (
     compute_loss,
     evaluation_loop,
-    standardize,
 )
 from ddpo.rewards import (
     aesthetic_score,
@@ -89,6 +88,18 @@ def parse_args():
         "--batch_size",
         type=int,
         default=5,
+    )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=0.99,
+        help="Discounting factor for the rewards. Common values are 0.9 - 0.99.",
+    )
+    parser.add_argument(
+        "--value_lr",
+        type=float,
+        default=1e-4,
+        help="The learning rate for the value network. For now we use a fixed learning rate for the value network.",
     )
     parser.add_argument(
         "--initial_lr",
@@ -195,6 +206,9 @@ def parse_args():
 
 
 # Initialize the value network--------------------------------------------------
+# Initializatoin user in the original PPO repo implementation
+# Details for this implementation in:
+# https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     nn.init.orthogonal_(layer.weight, std)
     nn.init.constant_(layer.bias, bias_const)
@@ -203,21 +217,27 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 class ValueNetwork(nn.Module):
     """
-    TODO: define the first layer with the number of features of the input
+    Value network to estimate the value of a state.
+    The state is the denoised image of the diffusion model
+    with shape (C, H, W). In this case, the input shape is
+    (3, 256, 256) for CelebA-HQ 256x256 images.
     """
 
-    def __init__(self):
+    def __init__(self, input_shape=(3, 256, 256)):
         super(ValueNetwork, self).__init__()
+        input_size = input_shape[0] * input_shape[1] * input_shape[2]
+
         self.network = nn.Sequential(
-            layer_init(nn.Linear(10, 64)),
+            layer_init(nn.Linear(input_size, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 64)),
             nn.Tanh(),
             layer_init(nn.Linear(64, 1)),
         )
 
-    def get_value(self, x):
-        return self.network(x)
+    def forward(self, x):
+        x = x.view(x.size(0), -1)
+        return self.network(x).squeeze(1)
 
 
 if __name__ == "__main__":
@@ -261,31 +281,31 @@ if __name__ == "__main__":
 
         if args.task == Task.LAION:
             run = wandb.init(
-                project="ddpo-aesthetic-ddpm-celebahq256",
+                project="iddpo-aesthetic-ddpm-celebahq256",
                 config=vars(args),
                 save_code=True,
             )
         elif args.task == Task.UNDER30:
             run = wandb.init(
-                project="ddpo-under30-ddpm-celebahq256",
+                project="iddpo-under30-ddpm-celebahq256",
                 config=vars(args),
                 save_code=True,
             )
         elif args.task == Task.OVER50:
             run = wandb.init(
-                project="ddpo-over50-ddpm-celebahq256",
+                project="iddpo-over50-ddpm-celebahq256",
                 config=vars(args),
                 save_code=True,
             )
         elif args.task == Task.COMPRESSIBILITY:
             run = wandb.init(
-                project="ddpo-compressibility-ddpm-celebahq256",
+                project="iddpo-compressibility-ddpm-celebahq256",
                 config=vars(args),
                 save_code=True,
             )
         elif args.task == Task.INCOMPRESSIBILITY:
             run = wandb.init(
-                project="ddpo-incompressibility-ddpm-celebahq256",
+                project="iddpo-incompressibility-ddpm-celebahq256",
                 config=vars(args),
                 save_code=True,
             )
@@ -331,10 +351,18 @@ if __name__ == "__main__":
             device=args.device,
         )
 
-    # Optimizer
-    optimizer = torch.optim.AdamW(
+    # Initialize Policy (diffusion) optimizer
+    policy_optimizer = torch.optim.AdamW(
         image_pipe.unet.parameters(),
         weight_decay=args.weight_decay,
+    )
+
+    # Initialize value network (TODO: requires input shape)
+    value_network = ValueNetwork().to(args.device)
+
+    value_optimizer = torch.optim.Adam(
+        value_network.parameters(),
+        lr=args.value_lr,
     )
 
     # Resume from ckpt--------------------------------------------------------------
@@ -345,7 +373,8 @@ if __name__ == "__main__":
             wandb.run.notes = f"Resuming training from ckpt: {args.resume_from_ckpt}"
         ckpt = torch.load(args.resume_from_ckpt, map_location=torch.device(args.device))
         image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
-        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
+        value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
 
     if args.resume_from_wandb is not None:
         logging.info(
@@ -369,7 +398,8 @@ if __name__ == "__main__":
         logging.info(" -> ckpt loading from: %s", ckpt_path)
         ckpt = torch.load(ckpt_path, map_location=torch.device(args.device))
         image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
-        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
+        value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
 
     # Learning Rate Setting---------------------------------------------------------
     # learning rate with linear warmpup and half-cosine cycle annealing
@@ -394,16 +424,19 @@ if __name__ == "__main__":
         lr_increment = (args.peak_lr - args.initial_lr) / warmup_steps
 
     logging.info(
-        "Total training steps: %s | warmup steps: %s | lr increment: %s | min lr: %s",
+        "Total training steps: %s | policy warmup steps: %s | policy lr increment: %s | policy min lr: %s | value lr: %s",
         total_training_steps,
         warmup_steps,
         lr_increment,
         min_lr,
+        args.value_lr,
     )
     # Training Loop-----------------------------------------------------------------
     track_lrs = []
     mean_rewards = []
-    epoch_loss = []
+    mean_values = []
+    epoch_policy_loss = []
+    epoch_value_loss = []
     best_reward = -float("inf")  # initialize best reward
 
     if args.resume_from_ckpt is not None:
@@ -435,53 +468,114 @@ if __name__ == "__main__":
             args.num_batches,
         )
 
-        all_step_preds, log_probs, advantages, all_rewards = [], [], [], []
+        all_step_preds, log_probs, advantages, all_rewards, all_value_estimates = (
+            [],
+            [],
+            [],
+            [],
+            [],
+        )
 
-        # sampling `num_samples_per_epoch` images, intermediate states, and
-        # final_rewards by collecting each samples_per_batch, until complete
-        # batch_size times `num_samples_per_epoch = num_batches * batch_size`
+        # Collect data in batches
+        # ----------------------------------------------------------------------
+        # collect in batches the trajectory raw and denoised
+        # states (T+1, B, C, H, W), each one, and logprobs (T, B)
         for _ in progress_bar(range(args.num_batches)):
-            batch_all_step_preds, batch_log_probs = sample_from_ddpm_celebahq(
-                args.batch_size,
-                scheduler,
-                image_pipe,
-                args.device,
+            batch_all_step_preds, batch_denoised_all_step_preds, batch_log_probs = (
+                sample_from_ddpm_celebahq(
+                    args.batch_size,
+                    scheduler,
+                    image_pipe,
+                    args.device,
+                )
             )
 
-            # compute reward on the final step (sample), and obtain advantages
-            batch_rewards = reward_model(batch_all_step_preds[-1])
-            batch_advantages = standardize(batch_rewards)
+            # Estimate advantages: trajectory rewards and value estimates
+            # ------------------------------------------------------------------
+            # compute reward directly in the final sample for debbuging
+            batch_final_rewards = reward_model(batch_all_step_preds[-1])
+
+            # compute the discounted rewards-to-go over the entire denoised
+            #  trajectory of samples in the batch, a tensor of shape (T, B)
+            batch_trajectory_rewards = []
+
+            for t in range(batch_denoised_all_step_preds.shape[0]):
+                batch_trajectory_rewards.append(
+                    reward_model(batch_denoised_all_step_preds[t])
+                )
+
+            # Return the rewards tensor for each trajectory (T, B)
+            batch_trajectory_rewards = torch.stack(batch_trajectory_rewards)
+
+            # Compute discounted reward-on-to-go (T, B)
+            T, B = batch_trajectory_rewards.shape
+            batch_trajectory_discounted_rewards = torch.zeros_like(
+                batch_trajectory_rewards
+            )
+            # Initialize reward-to-go for the last time step
+            batch_trajectory_discounted_rewards[-1] = batch_trajectory_rewards[-1]
+            # Iterate over each timestep in reverse order to accumulate discounted rewards
+            for t in reversed(range(T - 1)):
+                batch_trajectory_discounted_rewards[t] = (
+                    batch_trajectory_rewards[t]
+                    + args.gamma * batch_trajectory_discounted_rewards[t + 1]
+                )
+
+            # Estimate the value over the entire denoised trajectory (T, B)
+            batch_value_estimates = []
+            for t in range(batch_denoised_all_step_preds.shape[0]):
+                batch_value_estimates.append(
+                    value_network(batch_denoised_all_step_preds[t])
+                )
+
+            # Return the value estimates tensor (T, B)
+            batch_value_estimates = torch.stack(batch_value_estimates)
+
+            # compute the advantages
+            batch_trajectory_advantages = (
+                batch_trajectory_discounted_rewards - batch_value_estimates
+            )
 
             # store information...
+            # TODO: store rewards and discounted rewards on the future...
             all_step_preds.append(batch_all_step_preds)
             log_probs.append(batch_log_probs)
-            advantages.append(batch_advantages)
-            all_rewards.append(batch_rewards)
+            advantages.append(batch_trajectory_advantages)
+            all_rewards.append(batch_final_rewards)
+            all_value_estimates.append(batch_value_estimates)
 
+        # concatenate the collected data
+        # ----------------------------------------------------------------------
         all_step_preds = torch.cat(
             all_step_preds, dim=1
         )  # concatenate across batch dim
         log_probs = torch.cat(log_probs, dim=1)  # concatenate across batch dim
         advantages = torch.cat(advantages)
         all_rewards = torch.cat(all_rewards)
+        values = torch.cat(all_value_estimates)
+
+        # standardize the advantages across the entire collected data
+        advantages = (advantages - advantages.mean()) / (advantages.std() + EPS)
 
         # save the mean reward of the current samples
         mean_rewards.append(all_rewards.mean().item())
         logging.info(" -> mean reward: %s", mean_rewards[-1])
 
+        # NEW: save the mean value of the current samples
+        mean_values.append(values.mean().item())
+        logging.info(" -> mean value: %s", mean_values[-1])
+
         if args.wandb_logging:
             logging.info("Logging reward statistics and an image batch to wandb...")
-            wandb.log({"mean_reward": mean_rewards[-1]})
-            wandb.log({"std_reward": all_rewards.std().item()})
-            wandb.log({"min_reward": all_rewards.min().item()})
-            wandb.log({"max_reward": all_rewards.max().item()})
-            wandb.log(
-                {"reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy())}
-            )
-            # Nota: sobre las imagenes si suben con memoria ram, no sé si aporta
-            # mucho guardar todas
             wandb.log(
                 {
+                    "mean_reward": mean_rewards[-1],
+                    "std_reward": all_rewards.std().item(),
+                    "min_reward": all_rewards.min().item(),
+                    "max_reward": all_rewards.max().item(),
+                    "mean_value": mean_values[-1],
+                    "std_value": values.std().item(),
+                    "reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy()),
                     "img batch": [
                         wandb.Image(
                             Image.fromarray(img),
@@ -494,15 +588,18 @@ if __name__ == "__main__":
                             all_rewards,
                         )
                     ],
-                },
+                }
             )
 
         # clean variables
         logging.info(" -> free GPU memory")
         del batch_all_step_preds
+        del batch_denoised_all_step_preds
         del batch_log_probs
-        del batch_rewards
-        del batch_advantages
+        del batch_trajectory_discounted_rewards
+        del batch_trajectory_rewards
+        del batch_trajectory_advantages
+        del batch_final_rewards
         flush()
 
         # ~~ evaluation step ~~
@@ -525,23 +622,33 @@ if __name__ == "__main__":
             initial_eval_trajectories = eval_rdf.copy()
         # ~~ end evaluation step ~~
 
+        # Split data into minibatches and update the parameters (exploitation)
+        # ----------------------------------------------------------------------
         # For num_inner_epochs times, we go over each sample compute the loss,
         # backpropagate, and update our diffusion model.
-        inner_loop_losses = []
+        pg_inner_loop_losses = []
+        value_inner_loop_losses = []
 
         logging.info("Starting inner loop...")
         for inner_epoch in progress_bar(range(args.num_inner_epochs)):
             # chunk the samples collected into batches
+            # all_step_preds and log_probs (T+1, B, C, H, W)
+            # and advantages (T, B) and values (T, B)
             all_step_preds_chunked = torch.chunk(
                 all_step_preds, args.num_batches, dim=1
             )
             log_probs_chunked = torch.chunk(log_probs, args.num_batches, dim=1)
+            # NOTE: why we chunk the advantages and values across dim=0?
             advantages_chunked = torch.chunk(advantages, args.num_batches, dim=0)
+            rewards_chunked = torch.chunk(all_rewards, args.num_batches, dim=0)
+            values_chunked = torch.chunk(values, args.num_batches, dim=0)
 
-            loss_value = 0.0
+            pg_loss_value = 0.0
+            value_loss_value = 0.0
+
             # now we start to iterate over the batches (manual dataloader)
             for i in progress_bar(range(len(all_step_preds_chunked))):
-                optimizer.zero_grad()
+                policy_optimizer.zero_grad()
                 global_step += 1  # lr counter
 
                 if args.initial_lr == args.peak_lr:
@@ -580,13 +687,13 @@ if __name__ == "__main__":
                             lr,
                         )
 
-                # Apply the calculated learning rate to the optimizer
-                for param_group in optimizer.param_groups:
+                # Apply the calculated learning rate to the policy optimizer
+                for param_group in policy_optimizer.param_groups:
                     param_group["lr"] = lr
-                track_lrs.append(optimizer.param_groups[0]["lr"])
+                track_lrs.append(policy_optimizer.param_groups[0]["lr"])
 
                 # Obtain the loss value and the ratio of the importance weight
-                loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
+                pg_loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
                     all_step_preds_chunked[i],
                     log_probs_chunked[i],
                     advantages_chunked[i],
@@ -597,6 +704,16 @@ if __name__ == "__main__":
                     args.device,
                 )  # loss.backward happens inside
 
+                # Compute the value loss using rewards and values
+                # minibatches
+                mb_value_estimates_flat = values_chunked[i].view(-1)
+                mb_rewards_flat = rewards_chunked[i].view(-1)
+                value_loss = ((mb_value_estimates_flat - mb_rewards_flat) ** 2).mean()
+                # backpropagate the value loss
+                # TODO: move within compute_loss() with pg_loss or compute
+                # pg_loss outside.
+                value_loss.backward()
+
                 # Apply gradient clipping after the warmup phase to avoid expliding gradients
                 if global_step > warmup_steps:
                     torch.nn.utils.clip_grad_norm_(
@@ -604,13 +721,17 @@ if __name__ == "__main__":
                         max_norm=1.0,
                     )  # gradient clipping
 
-                optimizer.step()
-                loss_value += loss
+                policy_optimizer.step()
+                value_optimizer.step()
+
+                pg_loss_value += pg_loss
+                value_loss_value += value_loss.item()
 
                 if args.wandb_logging:
                     wandb.log(
                         {
-                            "loss": loss,
+                            "pg_loss": pg_loss,
+                            "value_loss": value_loss,
                             "pct_clipped_ratios": pct_clipped_ratios,
                             "prob_ratio": wandb.Histogram(
                                 prob_ratio.detach().cpu().numpy(),
@@ -622,21 +743,33 @@ if __name__ == "__main__":
                         },
                     )
 
-            inner_loop_losses.append(loss_value / args.num_batches)
+            pg_inner_loop_losses.append(pg_loss_value / args.num_batches)
+            value_inner_loop_losses.append(value_loss_value / args.num_batches)
+
             if args.wandb_logging:
                 wandb.log(
-                    {"average loss": inner_loop_losses[-1], "inner_epoch": inner_epoch},
+                    {
+                        "average policy loss": pg_inner_loop_losses[-1],
+                        "inner_epoch": inner_epoch,
+                    },
+                    {
+                        "average value loss": value_inner_loop_losses[-1],
+                        "inner_epoch": inner_epoch,
+                    },
                 )
 
             logging.info(
-                " -> average loss: %s | inner epoch: %s",
-                inner_loop_losses[-1],
+                " -> average policy loss: %s | average value loss: %s | inner epoch: %s",
+                pg_inner_loop_losses[-1],
+                value_inner_loop_losses[-1],
                 inner_epoch + 1,
             )
 
-        epoch_loss.append(inner_loop_losses)
+        epoch_policy_loss.append(pg_inner_loop_losses)
+        epoch_value_loss.append(value_inner_loop_losses)
 
-        # # ~~ start of evaluation ~~
+        # Start evaluation loop (each args.eval_every_each_epoch)
+        # ----------------------------------------------------------------------
         if (
             args.eval_every_each_epoch is not None
             and (((epoch + 1) % args.eval_every_each_epoch) == 0 or epoch == 0)
@@ -728,12 +861,13 @@ if __name__ == "__main__":
                     eval_mean_reward,
                     best_reward,
                 )
-                # Save unet weights, optimizer state, and best_reward.
+                # Save unet weights, optimizer state (policy and value), and best_reward.
                 ckpt_path = f"{args.output_dir}/{args.task}-{run.name}-ckpt.pth"
                 torch.save(
                     {
                         "model_state_dict": image_pipe.unet.state_dict(),
-                        "optimizer_state_dict": optimizer.state_dict(),
+                        "policy_optimizer_state_dict": policy_optimizer.state_dict(),
+                        "value_optimizer_state_dict": value_optimizer.state_dict(),
                         "best_reward": eval_mean_reward,
                     },
                     ckpt_path,
@@ -752,6 +886,8 @@ if __name__ == "__main__":
         del all_step_preds_chunked
         del log_probs_chunked
         del advantages_chunked
+        del rewards_chunked
+        del values_chunked
 
         flush()
 
