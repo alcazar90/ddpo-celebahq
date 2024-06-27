@@ -682,7 +682,7 @@ if __name__ == "__main__":
                     # is equal to the peak_lr (fix learning rate)
                     lr = args.initial_lr
                     logging.info(
-                        "training step %s / %s, lr constant: %s",
+                        "training step %s / %s, policy lr constant: %s",
                         global_step,
                         total_training_steps,
                         lr,
@@ -693,7 +693,7 @@ if __name__ == "__main__":
                         # Linear warmup
                         lr = args.initial_lr + global_step * lr_increment
                         logging.info(
-                            "training step %s / %s, lr in warmup phase: %s",
+                            "training step %s / %s, policy lr in warmup phase: %s",
                             global_step,
                             total_training_steps,
                             lr,
@@ -707,7 +707,7 @@ if __name__ == "__main__":
                             1 + math.cos(math.pi * progress)
                         )
                         logging.info(
-                            "training step %s / %s, lr in cosine annealing phase: %s",
+                            "training step %s / %s, policy lr in cosine annealing phase: %s",
                             global_step,
                             total_training_steps,
                             lr,
