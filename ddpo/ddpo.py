@@ -71,7 +71,8 @@ def compute_loss(
         scheduler_output = scheduler.step(
             pred,
             t,
-            x_t[i].detach(),
+            # x_t[i].detach(),
+            x_t[i],
             eta,
             variance_noise=0,
         )
