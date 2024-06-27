@@ -924,7 +924,6 @@ if __name__ == "__main__":
         del log_probs_chunked
         del advantages_chunked
         del returns_chunked
-        del values_chunked
 
         flush()
 
