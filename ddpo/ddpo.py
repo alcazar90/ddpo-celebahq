@@ -224,9 +224,11 @@ def evaluation_loop(
         k = k.mean().item()
 
     # (4) TODO: Compute value function over denoised trajectory
-    with value_function.no_grad():
+    value_function.eval()
+    with torch.no_grad():
         v = [value_function(t) for t in denoised_trajectory]
     v_df = pd.DataFrame(torch.vstack(v).detach().cpu().numpy())
+    value_function.train()
 
     # (5) TODO: Compute discounted returns. Useful to have a function for this
 
