@@ -17,12 +17,14 @@ def compute_loss(
     original_log_probs,
     advantages,
     returns,
+    values,
     clip_advantages,
-    clip_ratio,
+    clip_coef,
     image_pipe,
     scheduler,
     value_function,
     vf_coef,
+    clip_vloss=True,
     norm_adv=True,
     device="cuda",
     eta=1,
@@ -35,7 +37,7 @@ def compute_loss(
         advantages (torch.Tensor): The advantages for each sample.
         returns (torch.Tensor): The returns for each sample.S
         clip_advantages (float): The maximum value to clip the advantages.
-        clip_ratio (float): The maximum value to clip the ratio.
+        clip_coef (float): The maximum value to clip the ratio.
         image_pipe (ImagePipe): The image processing pipeline.
         scheduler (Scheduler): The scheduler for the DDPO algorithm.
         value_function (torch.nn.Module): The value function to use for computing the advantages.
@@ -112,14 +114,14 @@ def compute_loss(
         unclipped_loss = -clipped_advantages * ratio  # this is the surrogate loss
         clipped_loss = -clipped_advantages * torch.clip(
             ratio,
-            1.0 - clip_ratio,
-            1.0 + clip_ratio,
+            1.0 - clip_coef,
+            1.0 + clip_coef,
         )  # this is the surrogate loss, but with artificially clipped ratios
 
         # compute % of clipped ratios
         pct_clipped_ratios = (
             torch.sum(
-                torch.logical_or(ratio < 1.0 - clip_ratio, ratio > 1.0 + clip_ratio),
+                torch.logical_or(ratio < 1.0 - clip_coef, ratio > 1.0 + clip_coef),
             )
             / ratio.size(0)
         ).item()
@@ -146,17 +148,26 @@ def compute_loss(
             x_t[i] - torch.sqrt(1 - alpha_prod_t) * prev_sample.detach()
         ) / torch.sqrt(alpha_prod_t)
 
-        # TODO: add option to clipped version of value loss
+        # value loss
         # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L280
         value = value_function(denoised_prev_sample)
+        if clip_vloss:
+            v_loss_unclipped = (value - returns[i].detach()) ** 2
+            v_clipped = values[i] + torch.clamp(
+                value - values[i],
+                -clip_coef,
+                clip_coef,
+            )
+            v_loss_clipped = (v_clipped - returns[i].detach()) ** 2
+            v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+            v_loss = 0.5 * v_loss_max.mean()
+        else:
+            # Compute value loss for the current timestep
+            v_loss = 0.5 * ((value - returns[i].detach()) ** 2).mean()
 
-        # Compute value loss for the current timestep
-        value_loss = 0.5 * ((value - returns[i].detach()) ** 2).mean()
-        # value_loss.backward()
+        value_loss_value += v_loss.item()
 
-        value_loss_value += value_loss.item()
-
-        loss = pg_loss + value_loss * vf_coef
+        loss = pg_loss + v_loss * vf_coef
         loss.backward()
 
     # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html

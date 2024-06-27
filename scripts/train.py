@@ -116,6 +116,12 @@ def parse_args():
         help="coefficient of the value function",
     )
     parser.add_argument(
+        "--clip_vloss",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Toggles whether or not to use a clipped loss for the value function, as per the paper.",
+    )
+    parser.add_argument(
         "--initial_lr",
         type=float,
         default=9e-8,
@@ -145,9 +151,10 @@ def parse_args():
         default=2.5,
     )
     parser.add_argument(
-        "--clip_ratio",
+        "--clip_coef",
         type=float,
-        default=1e-4,
+        default=0.2,
+        help="the surrogate clipping coefficient",
     )
     parser.add_argument(
         "--ddpm_ckpt",
@@ -587,7 +594,7 @@ if __name__ == "__main__":
         returns = torch.cat(returns)
         advantages = torch.cat(advantages)
         all_rewards = torch.cat(all_rewards)
-        values = torch.cat(all_value_estimates)
+        values = torch.cat(all_value_estimates).detach()
 
         # save the mean and std of reward, value, reeturns, and advantages of the current samples
         mean_rewards.append(all_rewards.mean().item())
@@ -597,7 +604,7 @@ if __name__ == "__main__":
         mean_returns.append(returns.mean().item())
         logging.info(" -> mean returns: %s", mean_returns[-1])
         mean_advantages.append(advantages.mean().item())
-        logging.info(" -> mean returns: %s", mean_advantages[-1])
+        logging.info(" -> mean advantages: %s", mean_advantages[-1])
 
         # Track variance explaind by the value prediction
         # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L305C1-L307C86
@@ -647,7 +654,7 @@ if __name__ == "__main__":
         del batch_final_rewards
         del batch_value_estimates
         del all_rewards
-        del values
+        # del values
         del all_value_estimates
         flush()
 
@@ -697,6 +704,7 @@ if __name__ == "__main__":
             # NOTE: why we chunk the advantages and values across dim=0?
             advantages_chunked = torch.chunk(advantages, args.num_batches, dim=0)
             returns_chunked = torch.chunk(returns, args.num_batches, dim=0)
+            values_chunked = torch.chunk(values, args.num_batches, dim=0)
 
             global_loss_value = 0.0
             pg_loss_value = 0.0
@@ -764,12 +772,14 @@ if __name__ == "__main__":
                     log_probs_chunked[i],
                     advantages_chunked[i],
                     returns_chunked[i],
+                    values_chunked[i],
                     args.clip_advantages,
-                    args.clip_ratio,
+                    args.clip_coef,
                     image_pipe,
                     scheduler,
                     value_network,
                     args.vf_coef,
+                    args.clip_vloss,
                     args.norm_adv,
                     args.device,
                 )  # loss.backward happens inside
