@@ -4,6 +4,7 @@ import argparse
 import logging
 import math
 import os
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -480,6 +481,7 @@ if __name__ == "__main__":
             )
 
     logging.info("Initializing RL training loop...")
+    start_time = time.time()
     for epoch in master_bar(range(args.num_epochs)):
         logging.info("Epoch: %s", epoch + 1)
         if args.wandb_logging:
@@ -782,6 +784,9 @@ if __name__ == "__main__":
                             "batch": i,
                             "policy_learning_rate": lr,
                             "value_learning_rate": args.value_lr,
+                            "charts/SPS": int(
+                                global_step + 1 / (time.time() - start_time)
+                            ),
                         },
                     )
 
