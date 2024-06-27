@@ -71,8 +71,7 @@ def compute_loss(
         scheduler_output = scheduler.step(
             pred,
             t,
-            # x_t[i].detach(),
-            x_t[i],
+            x_t[i].detach(),
             eta,
             variance_noise=0,
         )
@@ -135,7 +134,7 @@ def compute_loss(
         # using the states from the original policy?
         alpha_prod_t = image_pipe.scheduler.alphas_cumprod[t]
         denoised_prev_sample = (
-            x_t[i] - torch.sqrt(1 - alpha_prod_t) * prev_sample
+            x_t[i] - torch.sqrt(1 - alpha_prod_t) * prev_sample.detach()
         ) / torch.sqrt(alpha_prod_t)
 
         # update the trajectory
