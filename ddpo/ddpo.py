@@ -54,7 +54,8 @@ def compute_loss(
     pg_loss_value = 0.0
     logr = 0.0
 
-    new_values = []
+    # VERIFY: is to match the returns dimensions (T=41)
+    new_values = [x_t[0]]
     for i, t in enumerate(scheduler.timesteps):
         clipped_advantages = torch.clip(
             advantages,
@@ -153,7 +154,7 @@ def compute_loss(
         f"new_values shape: {new_values.shape}",
     )
 
-    mb_new_values = value_function(torch.stack(new_values)).view(-1)
+    mb_new_values = value_function(new_values).view(-1)
     mb_returns = returns.view(-1)
 
     # compute the value loss
