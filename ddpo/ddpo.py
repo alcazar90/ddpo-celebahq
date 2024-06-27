@@ -37,6 +37,8 @@ def compute_loss(
         float: The mean KL divergence between the current policy and the original policy.
 
     """
+    # TODO: captur clipped fraction like in:
+    # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L252
     unet = image_pipe.unet.to(device)
     num_inference_steps = scheduler.num_inference_steps
     pg_loss_value = 0.0

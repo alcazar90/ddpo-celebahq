@@ -435,6 +435,7 @@ if __name__ == "__main__":
     track_lrs = []
     mean_rewards = []
     mean_values = []
+    mean_returns = []
     epoch_policy_loss = []
     epoch_value_loss = []
     best_reward = -float("inf")  # initialize best reward
@@ -468,7 +469,15 @@ if __name__ == "__main__":
             args.num_batches,
         )
 
-        all_step_preds, log_probs, advantages, all_rewards, all_value_estimates = (
+        (
+            all_step_preds,
+            log_probs,
+            advantages,
+            returns,
+            all_rewards,
+            all_value_estimates,
+        ) = (
+            [],
             [],
             [],
             [],
@@ -507,18 +516,16 @@ if __name__ == "__main__":
             # Return the rewards tensor for each trajectory (T, B)
             batch_trajectory_rewards = torch.stack(batch_trajectory_rewards)
 
-            # Compute discounted reward-on-to-go (T, B)
+            # Compute return using discounted reward-on-to-go (T, B)
             T, B = batch_trajectory_rewards.shape
-            batch_trajectory_discounted_rewards = torch.zeros_like(
-                batch_trajectory_rewards
-            )
+            batch_trajectory_returns = torch.zeros_like(batch_trajectory_rewards)
             # Initialize reward-to-go for the last time step
-            batch_trajectory_discounted_rewards[-1] = batch_trajectory_rewards[-1]
+            batch_trajectory_returns[-1] = batch_trajectory_rewards[-1]
             # Iterate over each timestep in reverse order to accumulate discounted rewards
             for t in reversed(range(T - 1)):
-                batch_trajectory_discounted_rewards[t] = (
+                batch_trajectory_returns[t] = (
                     batch_trajectory_rewards[t]
-                    + args.gamma * batch_trajectory_discounted_rewards[t + 1]
+                    + args.gamma * batch_trajectory_returns[t + 1]
                 )
 
             # Estimate the value over the entire denoised trajectory (T, B)
@@ -533,13 +540,13 @@ if __name__ == "__main__":
 
             # compute the advantages
             batch_trajectory_advantages = (
-                batch_trajectory_discounted_rewards - batch_value_estimates
+                batch_trajectory_returns - batch_value_estimates
             )
 
             # store information...
-            # TODO: store rewards and discounted rewards on the future...
             all_step_preds.append(batch_all_step_preds)
             log_probs.append(batch_log_probs)
+            returns.append(batch_trajectory_returns)
             advantages.append(batch_trajectory_advantages)
             all_rewards.append(batch_final_rewards)
             all_value_estimates.append(batch_value_estimates)
@@ -550,6 +557,7 @@ if __name__ == "__main__":
             all_step_preds, dim=1
         )  # concatenate across batch dim
         log_probs = torch.cat(log_probs, dim=1)  # concatenate across batch dim
+        returns = torch.cat(returns)
         advantages = torch.cat(advantages)
         all_rewards = torch.cat(all_rewards)
         values = torch.cat(all_value_estimates)
@@ -561,9 +569,13 @@ if __name__ == "__main__":
         mean_rewards.append(all_rewards.mean().item())
         logging.info(" -> mean reward: %s", mean_rewards[-1])
 
-        # NEW: save the mean value of the current samples
+        # save the mean value of the current samples
         mean_values.append(values.mean().item())
         logging.info(" -> mean value: %s", mean_values[-1])
+
+        # save the mean returns of the current samples
+        mean_returns.append(returns.mean().item())
+        logging.info(" -> mean returns: %s", mean_returns[-1])
 
         if args.wandb_logging:
             logging.info("Logging reward statistics and an image batch to wandb...")
@@ -575,6 +587,8 @@ if __name__ == "__main__":
                     "max_reward": all_rewards.max().item(),
                     "mean_value": mean_values[-1],
                     "std_value": values.std().item(),
+                    "mean_returns": mean_returns[-1],
+                    "std_returns": returns.std().item(),
                     "reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy()),
                     "img batch": [
                         wandb.Image(
@@ -596,7 +610,7 @@ if __name__ == "__main__":
         del batch_all_step_preds
         del batch_denoised_all_step_preds
         del batch_log_probs
-        del batch_trajectory_discounted_rewards
+        del batch_trajectory_returns
         del batch_trajectory_rewards
         del batch_trajectory_advantages
         del batch_final_rewards
@@ -640,7 +654,7 @@ if __name__ == "__main__":
             log_probs_chunked = torch.chunk(log_probs, args.num_batches, dim=1)
             # NOTE: why we chunk the advantages and values across dim=0?
             advantages_chunked = torch.chunk(advantages, args.num_batches, dim=0)
-            rewards_chunked = torch.chunk(all_rewards, args.num_batches, dim=0)
+            returns_chunked = torch.chunk(returns, args.num_batches, dim=0)
             values_chunked = torch.chunk(values, args.num_batches, dim=0)
 
             pg_loss_value = 0.0
@@ -704,11 +718,15 @@ if __name__ == "__main__":
                     args.device,
                 )  # loss.backward happens inside
 
+                # TODO: add option to clipped version of value loss
+                # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L280
                 # Compute the value loss using rewards and values
                 # minibatches
                 mb_value_estimates_flat = values_chunked[i].view(-1)
-                mb_rewards_flat = rewards_chunked[i].view(-1)
-                value_loss = ((mb_value_estimates_flat - mb_rewards_flat) ** 2).mean()
+                mb_rewards_flat = returns_chunked[i].view(-1)
+                value_loss = (
+                    0.5 * ((mb_value_estimates_flat - mb_rewards_flat) ** 2).mean()
+                )
                 # backpropagate the value loss
                 # TODO: move within compute_loss() with pg_loss or compute
                 # pg_loss outside.
@@ -726,6 +744,9 @@ if __name__ == "__main__":
 
                 pg_loss_value += pg_loss
                 value_loss_value += value_loss.item()
+
+                # TODO: track variance explaind by the value prediction
+                # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L305C1-L307C86
 
                 if args.wandb_logging:
                     wandb.log(
@@ -770,6 +791,7 @@ if __name__ == "__main__":
 
         # Start evaluation loop (each args.eval_every_each_epoch)
         # ----------------------------------------------------------------------
+        # TODO: Evaluate new metrics such as discounted return etc...
         if (
             args.eval_every_each_epoch is not None
             and (((epoch + 1) % args.eval_every_each_epoch) == 0 or epoch == 0)
@@ -886,7 +908,7 @@ if __name__ == "__main__":
         del all_step_preds_chunked
         del log_probs_chunked
         del advantages_chunked
-        del rewards_chunked
+        del returns_chunked
         del values_chunked
 
         flush()
