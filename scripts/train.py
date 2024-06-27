@@ -600,7 +600,7 @@ if __name__ == "__main__":
 
         # Track variance explaind by the value prediction
         # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L305C1-L307C86
-        y_pred, y_true = values.cpu().numpy(), returns.cpu().numpy()
+        y_pred, y_true = values.detach().cpu().numpy(), returns.detach().cpu().numpy()
         var_y = np.var(y_true)
         explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
