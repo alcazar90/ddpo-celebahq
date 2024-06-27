@@ -457,6 +457,7 @@ if __name__ == "__main__":
     mean_rewards = []
     mean_values = []
     mean_returns = []
+    mean_advantages = []
     epoch_policy_loss = []
     epoch_value_loss = []
     best_reward = -float("inf")  # initialize best reward
@@ -586,17 +587,15 @@ if __name__ == "__main__":
         # standardize the advantages across the entire collected data
         advantages = (advantages - advantages.mean()) / (advantages.std() + EPS)
 
-        # save the mean reward of the current samples
+        # save the mean and std of reward, value, reeturns, and advantages of the current samples
         mean_rewards.append(all_rewards.mean().item())
         logging.info(" -> mean reward: %s", mean_rewards[-1])
-
-        # save the mean value of the current samples
         mean_values.append(values.mean().item())
         logging.info(" -> mean value: %s", mean_values[-1])
-
-        # save the mean returns of the current samples
         mean_returns.append(returns.mean().item())
         logging.info(" -> mean returns: %s", mean_returns[-1])
+        mean_advantages.append(advantages.mean().item())
+        logging.info(" -> mean returns: %s", mean_advantages[-1])
 
         # Track variance explaind by the value prediction
         # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L305C1-L307C86
@@ -616,6 +615,8 @@ if __name__ == "__main__":
                     "std_value": values.std().item(),
                     "mean_returns": mean_returns[-1],
                     "std_returns": returns.std().item(),
+                    "mean_advantages": mean_advantages[-1],
+                    "std_advantages": advantages.std().item(),
                     "reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy()),
                     "explained_variance": explained_var,
                     "img batch": [
