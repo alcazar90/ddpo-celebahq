@@ -394,8 +394,9 @@ if __name__ == "__main__":
         if args.wandb_logging:
             wandb.run.notes = f"Resuming training from ckpt: {args.resume_from_ckpt}"
         ckpt = torch.load(args.resume_from_ckpt, map_location=torch.device(args.device))
-        image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+        image_pipe.unet.load_state_dict(ckpt["policy_model_state_dict"])
         policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
+        value_network.load_state_dict(ckpt["value_network_state_dict"])
         value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
 
     if args.resume_from_wandb is not None:
@@ -419,8 +420,9 @@ if __name__ == "__main__":
         )
         logging.info(" -> ckpt loading from: %s", ckpt_path)
         ckpt = torch.load(ckpt_path, map_location=torch.device(args.device))
-        image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+        image_pipe.unet.load_state_dict(ckpt["policy_model_state_dict"])
         policy_optimizer.load_state_dict(ckpt["policy_optimizer_state_dict"])
+        value_network.load_state_dict(ckpt["value_network_state_dict"])
         value_optimizer.load_state_dict(ckpt["value_optimizer_state_dict"])
 
     # Learning Rate Setting---------------------------------------------------------
@@ -910,8 +912,9 @@ if __name__ == "__main__":
                 ckpt_path = f"{args.output_dir}/{args.task}-{run.name}-ckpt.pth"
                 torch.save(
                     {
-                        "model_state_dict": image_pipe.unet.state_dict(),
+                        "policy_model_state_dict": image_pipe.unet.state_dict(),
                         "policy_optimizer_state_dict": policy_optimizer.state_dict(),
+                        "value_model_state_dict": value_network.state_dict(),
                         "value_optimizer_state_dict": value_optimizer.state_dict(),
                         "best_reward": eval_mean_reward,
                     },
