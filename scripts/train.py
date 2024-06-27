@@ -206,6 +206,12 @@ def parse_args():
         type=float,
         default=-1.0,
     )
+    parser.add_argument(
+        "--torch_anomaly_detection",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Set torch.autograd.set_detect_anomaly(True) for debbuging",
+    )
     args = parser.parse_args()
     args.num_batches = int(args.num_samples_per_epoch // args.batch_size)
     if args.initial_lr == args.peak_lr:
@@ -285,6 +291,9 @@ if __name__ == "__main__":
     # Pytorch settings--------------------------------------------------------------
     # tf32, performance optimization
     torch.backends.cuda.matmul.allow_tf32 = True
+
+    if args.torch_anomaly_detection:
+        torch.autograd.set_detect_anomaly(True)
 
     # Initialize wandb--------------------------------------------------------------
     if args.wandb_logging:
@@ -657,6 +666,7 @@ if __name__ == "__main__":
 
         logging.info("Starting inner loop...")
         for inner_epoch in progress_bar(range(args.num_inner_epochs)):
+            logging.info("Split trajectory data in mini batches")
             # chunk the samples collected into batches
             # all_step_preds and log_probs (T+1, B, C, H, W)
             # and advantages (T, B) and values (T, B)
@@ -669,15 +679,25 @@ if __name__ == "__main__":
             returns_chunked = torch.chunk(returns, args.num_batches, dim=0)
             values_chunked = torch.chunk(values, args.num_batches, dim=0)
 
+            logging.info(
+                f"returns_chunked: {len(returns_chunked)}, each shape {returns_chunked[0].shape} "
+            )
+
+            logging.info(
+                f"values_chunked: {len(values_chunked)}, each shape {values_chunked[0].shape} "
+            )
+
             pg_loss_value = 0.0
             value_loss_value = 0.0
 
+            logging.info("Iterate over the mini batches...")
             # now we start to iterate over the batches (manual dataloader)
             for i in progress_bar(range(len(all_step_preds_chunked))):
                 policy_optimizer.zero_grad()
                 value_optimizer.zero_grad()
                 global_step += 1  # lr counter
 
+                logging.info("Setting policy learning rate given global step")
                 if args.initial_lr == args.peak_lr:
                     # Skip the warmup phase and cosine annealing if the initial_lr
                     # is equal to the peak_lr (fix learning rate)
