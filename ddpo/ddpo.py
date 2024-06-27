@@ -132,7 +132,7 @@ def compute_loss(
         # compute new values based on denoised predictin (DDIM Eq.9)
         # VERIFY: this is the correct way to compute the denoised trajectory?
         # using the states from the original policy?
-        alpha_prod_t = image_pipe.scheduler.alphas_cumprod[t]
+        alpha_prod_t = image_pipe.scheduler.alphas_cumprod[t].detach()
         denoised_prev_sample = (
             x_t[i] - torch.sqrt(1 - alpha_prod_t) * prev_sample.detach()
         ) / torch.sqrt(alpha_prod_t)
