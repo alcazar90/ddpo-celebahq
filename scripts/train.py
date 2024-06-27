@@ -675,6 +675,7 @@ if __name__ == "__main__":
             # now we start to iterate over the batches (manual dataloader)
             for i in progress_bar(range(len(all_step_preds_chunked))):
                 policy_optimizer.zero_grad()
+                value_optimizer.zero_grad()
                 global_step += 1  # lr counter
 
                 if args.initial_lr == args.peak_lr:
