@@ -120,9 +120,16 @@ def parse_args():
         help="The percentage of training steps to use for learning rate warmup. Common values are 0.1\% - 10\%. (default: 10%)",
     )
     parser.add_argument(
-        "--weight_decay",
+        "--policy_weight_decay",
         type=float,
         default=1e-4,
+        help="The weight decay for the ADAM optimizer used to update the policy network. Common values are 1e-4 - 1e-6.",
+    )
+    parser.add_argument(
+        "--value_weight_decay",
+        type=float,
+        default=1e-4,
+        help="The weight decay for the ADAM optimizer used to update the value network. Common values are 1e-4 - 1e-6.",
     )
     parser.add_argument(
         "--clip_advantages",
@@ -215,6 +222,9 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     return layer
 
 
+# TODO: Check how to solve the seed initialization in the ValueNetwork
+# to don't mess up with the sample generation in the DDIMSchedulerA
+# of previous experiments.
 class ValueNetwork(nn.Module):
     """
     Value network to estimate the value of a state.
@@ -354,15 +364,16 @@ if __name__ == "__main__":
     # Initialize Policy (diffusion) optimizer
     policy_optimizer = torch.optim.AdamW(
         image_pipe.unet.parameters(),
-        weight_decay=args.weight_decay,
+        weight_decay=args.policy_weight_decay,
     )
 
-    # Initialize value network (TODO: requires input shape)
+    # NOTE: input shape of 1st layer fixed in the ValueNetwork arquitecture
     value_network = ValueNetwork().to(args.device)
 
     value_optimizer = torch.optim.Adam(
         value_network.parameters(),
         lr=args.value_lr,
+        weight_decay=args.value_weight_decay,
     )
 
     # Resume from ckpt--------------------------------------------------------------
