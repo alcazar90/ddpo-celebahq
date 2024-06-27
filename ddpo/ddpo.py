@@ -219,5 +219,11 @@ def evaluation_loop(
         k = (logr.exp() - 1) - logr
         k = k.mean().item()
 
-    # (4) Return everything...
+    # (4) TODO: Compute value function over denoised trajectory
+
+    # (5) TODO: Compute discounted returns
+
+    # (6) TODO: Compute advantages
+
+    # (7) Return everything...
     return trajectory[-1], r_df, logp.detach().cpu(), k
