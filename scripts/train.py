@@ -267,9 +267,7 @@ class ValueNetwork(nn.Module):
         self.network = nn.Sequential(
             layer_init(nn.Linear(input_size, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(128, 256)),
-            nn.Tanh(),
-            layer_init(nn.Linear(256, 1), std=1.0),
+            layer_init(nn.Linear(128, 1), std=1.0),
         )
 
     def forward(self, x):
