@@ -956,7 +956,6 @@ if __name__ == "__main__":
             del eval_denoised_rdf
             del eval_value_df
             del eval_logp
-            del eval_mean_reward
             del eval_value_mean
             del k
             flush()
