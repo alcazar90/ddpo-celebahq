@@ -647,6 +647,13 @@ if __name__ == "__main__":
         del batch_trajectory_rewards
         del batch_trajectory_advantages
         del batch_final_rewards
+        del batch_value_estimates
+        del mean_rewards
+        del mean_values
+        del mean_returns
+        del mean_advantages
+        del all_rewards
+        del values
         flush()
 
         # ~~ evaluation step ~~
@@ -819,6 +826,17 @@ if __name__ == "__main__":
         epoch_policy_loss.append(pg_inner_loop_losses)
         epoch_value_loss.append(value_inner_loop_losses)
 
+        # clean variables
+        del all_step_preds
+        del log_probs
+        del advantages
+        del returns
+        del all_rewards
+        del all_value_estimates
+        del pg_inner_loop_losses
+        del value_inner_loop_losses
+        flush()
+
         # Start evaluation loop (each args.eval_every_each_epoch)
         # ----------------------------------------------------------------------
         # TODO: Compute value estimation and advantage in the evaluation loop
@@ -939,6 +957,8 @@ if __name__ == "__main__":
             del eval_denoised_rdf
             del eval_value_df
             del eval_logp
+            del eval_mean_reward
+            del eval_value_mean
             del k
             flush()
 
