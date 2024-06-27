@@ -265,11 +265,11 @@ class ValueNetwork(nn.Module):
         input_size = input_shape[0] * input_shape[1] * input_shape[2]
 
         self.network = nn.Sequential(
-            layer_init(nn.Linear(input_size, 64)),
+            layer_init(nn.Linear(input_size, 128)),
             nn.Tanh(),
-            layer_init(nn.Linear(128, 128)),
+            layer_init(nn.Linear(128, 256)),
             nn.Tanh(),
-            layer_init(nn.Linear(128, 1), std=1.0),
+            layer_init(nn.Linear(256, 1), std=1.0),
         )
 
     def forward(self, x):
