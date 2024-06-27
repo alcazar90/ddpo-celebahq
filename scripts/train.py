@@ -776,7 +776,8 @@ if __name__ == "__main__":
                             "KL (current vs old policy)": KL,
                             "epoch": epoch,
                             "batch": i,
-                            "learning_rate": lr,
+                            "policy_learning_rate": lr,
+                            "value_learning_rate": args.value_lr,
                         },
                     )
 
