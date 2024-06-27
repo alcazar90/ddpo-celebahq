@@ -10,10 +10,12 @@ def compute_loss(
     x_t,
     original_log_probs,
     advantages,
+    returns,
     clip_advantages,
     clip_ratio,
     image_pipe,
     scheduler,
+    value_function,
     device="cuda",
     eta=1,
 ):
@@ -23,15 +25,18 @@ def compute_loss(
         x_t (torch.Tensor): The input samples for the current timestep.
         original_log_probs (torch.Tensor): The log probabilities of the original policy.
         advantages (torch.Tensor): The advantages for each sample.
+        returns (torch.Tensor): The returns for each sample.S
         clip_advantages (float): The maximum value to clip the advantages.
         clip_ratio (float): The maximum value to clip the ratio.
         image_pipe (ImagePipe): The image processing pipeline.
         scheduler (Scheduler): The scheduler for the DDPO algorithm.
+        value_function (torch.nn.Module): The value function to use for computing the advantages.
         device (torch.device): The device to perform computations on.
         eta (float, optional): The scaling factor for the standard deviation. Defaults to 1.
 
     Returns:
-        float: The computed loss value.
+        float: The computed policy loss value.
+        float: The computed value loss value.
         torch.Tensor: The ratio of probabilities between the current policy and the original policy.
         float: The percentage of clipped ratios.
         float: The mean KL divergence between the current policy and the original policy.
@@ -43,6 +48,8 @@ def compute_loss(
     num_inference_steps = scheduler.num_inference_steps
     pg_loss_value = 0.0
     logr = 0.0
+
+    new_values = []
     for i, t in enumerate(scheduler.timesteps):
         clipped_advantages = torch.clip(
             advantages,
@@ -62,10 +69,20 @@ def compute_loss(
             eta,
             variance_noise=0,
         )
+
+        # this is the mean and not full sample since variance is 0
+        prev_sample_mean = scheduler_output.prev_sample
+
+        # compute variance between two timesteps, considering the jumps
+        # between training and inference timesteps
         t_1 = t - scheduler.config.num_train_timesteps // num_inference_steps
         variance = scheduler._get_variance(t, t_1)
         std_dev_t = eta * variance ** (0.5)
-        prev_sample_mean = scheduler_output.prev_sample
+
+        # generate new samples using reparametrization trick (adding noise)
+        prev_sample = prev_sample_mean + torch.randn_like(prev_sample_mean) * std_dev_t
+
+        # compute log probs of the new sample and the original policy
         current_log_probs = calculate_log_probs(
             x_t[i + 1].detach(),
             prev_sample_mean,
@@ -106,9 +123,31 @@ def compute_loss(
             current_log_probs - original_log_probs[i].detach(),
         )
 
+        # compute new values based on denoised predictin (DDIM Eq.9)
+        # VERIFY: this is the correct way to compute the denoised trajectory?
+        # using the states from the original policy?
+        alpha_prod_t = image_pipe.scheduler.alphas_cumprod[t]
+        denoised_prev_sample = (
+            x_t[i] - torch.sqrt(1 - alpha_prod_t) * prev_sample
+        ) / torch.sqrt(alpha_prod_t)
+
+        # update the trajectory
+        new_values.append(denoised_prev_sample)
+
+    # concatenate new denoised states and compute new values
+    mb_new_values = value_function(torch.stack(new_values)).view(-1)
+    mb_returns = returns.view(-1)
+
+    # compute the value loss
+    # TODO: add option to clipped version of value loss
+    # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L280
+    value_loss = 0.5 * ((mb_new_values - mb_returns) ** 2).mean()
+
+    value_loss.backward()
+
     # Follow approximation KL based on: http://joschu.net/blog/kl-approx.html
     k3 = (logr.exp() - 1) - logr
-    return pg_loss_value, ratio, pct_clipped_ratios, k3.mean().item()
+    return pg_loss_value, value_loss.item(), ratio, pct_clipped_ratios, k3.mean().item()
 
 
 @torch.no_grad()

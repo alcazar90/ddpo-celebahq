@@ -598,6 +598,12 @@ if __name__ == "__main__":
         mean_returns.append(returns.mean().item())
         logging.info(" -> mean returns: %s", mean_returns[-1])
 
+        # Track variance explaind by the value prediction
+        # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L305C1-L307C86
+        y_pred, y_true = values.cpu().numpy(), returns.cpu().numpy()
+        var_y = np.var(y_true)
+        explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
+
         if args.wandb_logging:
             logging.info("Logging reward statistics and an image batch to wandb...")
             wandb.log(
@@ -611,6 +617,7 @@ if __name__ == "__main__":
                     "mean_returns": mean_returns[-1],
                     "std_returns": returns.std().item(),
                     "reward_hist": wandb.Histogram(all_rewards.detach().cpu().numpy()),
+                    "explained_variance": explained_var,
                     "img batch": [
                         wandb.Image(
                             Image.fromarray(img),
@@ -740,30 +747,17 @@ if __name__ == "__main__":
                 track_lrs.append(policy_optimizer.param_groups[0]["lr"])
 
                 # Obtain the loss value and the ratio of the importance weight
-                pg_loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
+                pg_loss, value_loss, prob_ratio, pct_clipped_ratios, KL = compute_loss(
                     all_step_preds_chunked[i],
                     log_probs_chunked[i],
                     advantages_chunked[i],
+                    returns_chunked[i],
                     args.clip_advantages,
                     args.clip_ratio,
                     image_pipe,
                     scheduler,
                     args.device,
                 )  # loss.backward happens inside
-
-                # TODO: add option to clipped version of value loss
-                # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L280
-                # Compute the value loss using rewards and values
-                # minibatches
-                mb_value_estimates_flat = values_chunked[i].view(-1)
-                mb_rewards_flat = returns_chunked[i].view(-1)
-                value_loss = (
-                    0.5 * ((mb_value_estimates_flat - mb_rewards_flat) ** 2).mean()
-                )
-                # backpropagate the value loss
-                # TODO: move within compute_loss() with pg_loss or compute
-                # pg_loss outside.
-                value_loss.backward(retain_graph=True)
 
                 # Apply gradient clipping after the warmup phase to avoid expliding gradients
                 if global_step > warmup_steps:
@@ -777,9 +771,6 @@ if __name__ == "__main__":
 
                 pg_loss_value += pg_loss
                 value_loss_value += value_loss.item()
-
-                # TODO: track variance explaind by the value prediction
-                # See: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L305C1-L307C86
 
                 if args.wandb_logging:
                     wandb.log(
