@@ -787,9 +787,6 @@ if __name__ == "__main__":
                 wandb.log(
                     {
                         "average policy loss": pg_inner_loop_losses[-1],
-                        "inner_epoch": inner_epoch,
-                    },
-                    {
                         "average value loss": value_inner_loop_losses[-1],
                         "inner_epoch": inner_epoch,
                     },
