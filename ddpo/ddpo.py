@@ -140,19 +140,9 @@ def compute_loss(
         # update the trajectory
         new_values.append(denoised_prev_sample)
 
-    logging.info(
-        f"new_values length: {len(new_values)}, shape of element: {new_values[0].shape}",
-    )
-    logging.info(
-        f"returns shape: {returns.shape}",
-    )
-
     # concatenate new denoised states and compute new values
     new_values = torch.stack([value_function(new_val_mb) for new_val_mb in new_values])
 
-    logging.info(
-        f"new_values shape: {new_values.shape}",
-    )
     mb_new_values = new_values.view(-1)
     mb_returns = returns.view(-1)
 
