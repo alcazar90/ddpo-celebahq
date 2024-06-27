@@ -113,9 +113,9 @@ def compute_loss(
         ratio = torch.exp(current_log_probs - original_log_probs[i].detach())
 
         # compute entropy loss
-        entropy = -torch.sum(torch.exp(current_log_probs) * current_log_probs, dim=-1)
-        entropy_loss = entropy.mean()
-        entropy_loss_value += entropy_loss.item()
+        # entropy = -torch.sum(torch.exp(current_log_probs) * current_log_probs, dim=-1)
+        # entropy_loss = entropy.mean()
+        # entropy_loss_value += entropy_loss.item()
 
         # policy loss
         pg_loss1 = -clipped_advantages * ratio  # this is the surrogate loss
@@ -167,7 +167,8 @@ def compute_loss(
 
         value_loss_value += v_loss.item()
 
-        loss = pg_loss - ent_coef * entropy_loss + v_loss * vf_coef
+        # loss = pg_loss - ent_coef * entropy_loss + v_loss * vf_coef
+        loss = pg_loss + v_loss * vf_coef
         loss.backward()
 
     # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html
