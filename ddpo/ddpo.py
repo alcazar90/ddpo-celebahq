@@ -148,13 +148,12 @@ def compute_loss(
     )
 
     # concatenate new denoised states and compute new values
-    new_values = torch.stack(new_values)
+    new_values = torch.stack([value_function(new_val_mb) for new_val_mb in new_values])
 
     logging.info(
         f"new_values shape: {new_values.shape}",
     )
-
-    mb_new_values = value_function(new_values).view(-1)
+    mb_new_values = new_values.view(-1)
     mb_returns = returns.view(-1)
 
     # compute the value loss
