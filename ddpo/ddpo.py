@@ -141,7 +141,7 @@ def evaluation_loop(
     """
     # (1) Obtain sample and latents
     with torch.random.fork_rng():
-        trajectory, logp = sample_from_ddpm_celebahq(
+        trajectory, _, logp = sample_from_ddpm_celebahq(
             num_samples=num_samples,
             scheduler=scheduler,
             image_pipe=image_pipe,
