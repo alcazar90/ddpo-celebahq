@@ -871,7 +871,7 @@ if __name__ == "__main__":
                 plt.figure(figsize=(10, 4))
                 plt.plot(
                     eval_denoised_rdf[rc],
-                    color="gainsboro",
+                    color="indigo",
                     label="current denoised rwd trajectory",
                 )
                 plt.plot(
@@ -882,7 +882,7 @@ if __name__ == "__main__":
                 plt.plot(
                     initial_eval_denoised_trajectories[rc],
                     color="lightgrey",
-                    label="initial rwd trajectory",
+                    label="initial denoised rwd trajectory",
                 )
                 plt.plot(
                     initial_eval_trajectories[rc],
