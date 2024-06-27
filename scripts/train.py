@@ -684,7 +684,7 @@ if __name__ == "__main__":
                     lr = args.initial_lr
                     logging.info(
                         "training step %s / %s, policy lr constant: %s",
-                        global_step,
+                        global_step + 1,
                         total_training_steps,
                         lr,
                     )
@@ -695,7 +695,7 @@ if __name__ == "__main__":
                         lr = args.initial_lr + global_step * lr_increment
                         logging.info(
                             "training step %s / %s, policy lr in warmup phase: %s",
-                            global_step,
+                            global_step + 1,
                             total_training_steps,
                             lr,
                         )
@@ -709,7 +709,7 @@ if __name__ == "__main__":
                         )
                         logging.info(
                             "training step %s / %s, policy lr in cosine annealing phase: %s",
-                            global_step,
+                            global_step + 1,
                             total_training_steps,
                             lr,
                         )
