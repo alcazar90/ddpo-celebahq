@@ -848,6 +848,8 @@ if __name__ == "__main__":
                     "current_final_reward",
                     "original_final_reward",
                     "diff_reward",
+                    "current_value_estimate",
+                    "original_value_estimate",
                     "reward_trajectory",
                 ],
             )
