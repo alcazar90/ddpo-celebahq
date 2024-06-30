@@ -104,7 +104,7 @@ def sample_from_ddpm_celebahq(
         # [S] compute denoise prediction (DDIM Eq.9) given the current state:
         alpha_prod_t = image_pipe.scheduler.alphas_cumprod[t]
         denoised_prev_sample = (
-            xt - torch.sqrt(1 - alpha_prod_t) * prev_sample
+            xt - torch.sqrt(1 - alpha_prod_t) * noise_pred
         ) / torch.sqrt(alpha_prod_t)
 
         trajectory.append(prev_sample)
