@@ -838,17 +838,17 @@ if __name__ == "__main__":
                     # new policy (prev_sample)
                     newvalue = value_network(prev_sample)
                     if args.clip_vloss:
-                        v_loss_unclipped = (newvalue - mb_returns[j]) ** 2
+                        v_loss_unclipped = (newvalue - mb_returns[j].detach()) ** 2
                         v_clipped = mb_values[j] + torch.clamp(
                             newvalue - mb_values[j],
                             -args.clip_coef,
                             args.clip_coef,
                         )
-                        v_loss_clipped = (v_clipped - mb_returns[j]) ** 2
+                        v_loss_clipped = (v_clipped - mb_returns[j].detach()) ** 2
                         v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
                         v_loss = 0.5 * v_loss_max.mean()
                     else:
-                        v_loss = 0.5 * ((newvalue - mb_returns[j]) ** 2).mean()
+                        v_loss = 0.5 * ((newvalue - mb_returns[j].detach()) ** 2).mean()
 
                     v_loss_value += v_loss.item()
 
