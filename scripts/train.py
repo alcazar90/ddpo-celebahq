@@ -14,9 +14,9 @@ from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm.auto import tqdm
 
-from ddpo.config import Task
+from ddpo.config import EPS, Task
 from ddpo.ddpo import (
-    compute_loss,
+    compute_discounted_returns,
     evaluation_loop,
 )
 from ddpo.rewards import (
@@ -26,7 +26,7 @@ from ddpo.rewards import (
     over50_old,
     under30_old,
 )
-from ddpo.sampling import sample_from_ddpm_celebahq
+from ddpo.sampling import calculate_log_probs, sample_from_ddpm_celebahq
 from ddpo.utils import decode_tensor_to_np_img, flush
 
 # Set up logging----------------------------------------------------------------
@@ -525,7 +525,7 @@ if __name__ == "__main__":
             [],
         )
 
-        # Collect data in batches
+        # (1) Collect data in batches
         # ----------------------------------------------------------------------
         # collect in batches the trajectory raw and denoised
         # states (T+1, B, C, H, W), each one, and logprobs (T, B)
@@ -544,8 +544,8 @@ if __name__ == "__main__":
             # compute reward directly in the final sample for debbuging
             batch_final_rewards = reward_model(batch_all_step_preds[-1])
 
-            # compute the discounted rewards-to-go over the entire denoised
-            #  trajectory of samples in the batch, a tensor of shape (T, B)
+            # compute reward signal for each denoised trajectory, and denoised
+            # prediction within the trajectory (DDIM denosied obs)
             batch_trajectory_rewards = []
 
             for t in range(batch_denoised_all_step_preds.shape[0]):
@@ -553,20 +553,13 @@ if __name__ == "__main__":
                     reward_model(batch_denoised_all_step_preds[t])
                 )
 
-            # Return the rewards tensor for each trajectory (T, B)
+            # Concat the rewards into a tensor of shape (T, B)
             batch_trajectory_rewards = torch.stack(batch_trajectory_rewards)
 
             # Compute return using discounted reward-on-to-go (T, B)
-            T, B = batch_trajectory_rewards.shape
-            batch_trajectory_returns = torch.zeros_like(batch_trajectory_rewards)
-            # Initialize reward-to-go for the last time step
-            batch_trajectory_returns[-1] = batch_trajectory_rewards[-1]
-            # Iterate over each timestep in reverse order to accumulate discounted rewards
-            for t in reversed(range(T - 1)):
-                batch_trajectory_returns[t] = (
-                    batch_trajectory_rewards[t]
-                    + args.gamma * batch_trajectory_returns[t + 1]
-                )
+            batch_trajectory_returns = compute_discounted_returns(
+                batch_trajectory_rewards, args.gamma
+            )
 
             # Estimate the value over the entire denoised trajectory (T, B)
             batch_value_estimates = []
@@ -689,7 +682,7 @@ if __name__ == "__main__":
             initial_eval_denoised_trajectories = eval_denoised_rdf_.copy()
         # ~~ end evaluation step ~~
 
-        # Split data into minibatches and update the parameters (exploitation)
+        # (2) Split data into minibatches and update the parameters (exploitation)
         # ----------------------------------------------------------------------
         # For num_inner_epochs times, we go over each sample compute the loss,
         # backpropagate, and update our diffusion model.
@@ -711,6 +704,10 @@ if __name__ == "__main__":
             advantages_chunked = torch.chunk(advantages, args.num_batches, dim=0)
             returns_chunked = torch.chunk(returns, args.num_batches, dim=0)
             values_chunked = torch.chunk(values, args.num_batches, dim=0)
+
+            logging.info(
+                f"Checking minibatches (mb) shapes:\n->{log_probs_chunked[0].shape}\n->{advantages_chunked[0].shape}\n->{returns_chunked[0].shape}\n->{values_chunked[0].shape}"
+            )
 
             global_loss_value = 0.0
             pg_loss_value = 0.0
@@ -764,44 +761,108 @@ if __name__ == "__main__":
                     param_group["lr"] = lr
                 track_lrs.append(optimizer.param_groups[0]["lr"])
 
-                # Obtain the loss value and the ratio of the importance weight
-                (
-                    loss,
-                    pg_loss,
-                    value_loss,
-                    entropy_loss,
-                    prob_ratio,
-                    pct_clipped_ratios,
-                    KL,
-                    old_KL,
-                ) = compute_loss(
-                    all_step_preds_chunked[i],
-                    log_probs_chunked[i],
-                    advantages_chunked[i],
-                    returns_chunked[i],
-                    values_chunked[i],
-                    args.clip_advantages,
-                    args.clip_coef,
-                    image_pipe,
-                    scheduler,
-                    value_network,
-                    args.vf_coef,
-                    args.ent_coef,
-                    args.clip_vloss,
-                    args.norm_adv,
-                    args.device,
-                )  # loss.backward happens inside
+                # Iterate through the trajectory by minibatches
+                # --------------------------------------------------------------
+                mb_x = all_step_preds_chunked[i]
+                mb_advantages = advantages_chunked[i]
+                mb_returns = returns_chunked[i]
+                mb_values = values_chunked[i]
+                mb_logprobs = log_probs_chunked[i]
+                eta = 1.0  # constant
+                loss = 0.0
+                loss_value = 0.0
+                pg_loss_value = 0.0
+                v_loss_value = 0.0
+                logr = 0.0
+                clipfracs = []
 
-                # Apply gradient clipping after the warmup phase to avoid exploding gradients
-                # if global_step > warmup_steps:
-                #     torch.nn.utils.clip_grad_norm_(
-                #         image_pipe.unet.parameters(),
-                #         max_norm=1.0,
-                #     )  # gradient clipping policy
-                #     torch.nn.utils.clip_grad_norm_(
-                #         value_network.parameters(),
-                #         max_norm=1.0,
-                #     )  # gradient clipping value
+                if args.norm_adv:
+                    adv = (mb_advantages - mb_advantages.mean()) / (
+                        mb_advantages.std() + EPS
+                    )
+
+                for j, t in enumerate(scheduler.timesteps):
+                    input = scheduler.scale_model_input(mb_x[j].detach(), t)
+                    pred = image_pipe.unet(input, t).sample
+                    scheduler_output = scheduler.step(
+                        pred,
+                        t,
+                        mb_x[j].detach(),
+                        eta,
+                        variance_noise=0,
+                    )
+                    prev_sample_mean = scheduler_output.prev_sample
+                    t_1 = (
+                        t
+                        - scheduler.config.num_train_timesteps
+                        // scheduler.num_inference_steps
+                    )
+                    variance = scheduler._get_variance(t, t_1)
+                    std_dev_t = eta * variance ** (0.5)
+
+                    prev_sample = (
+                        prev_sample_mean
+                        + torch.randn_like(prev_sample_mean) * std_dev_t
+                    )
+
+                    current_log_probs = calculate_log_probs(
+                        mb_x[j + 1].detach(),
+                        prev_sample_mean,
+                        std_dev_t,
+                    ).mean(dim=tuple(range(1, prev_sample_mean.ndim)))
+
+                    logratio = current_log_probs - mb_logprobs[j].detach()
+                    ratio = logratio.exp()
+
+                    with torch.no_grad():
+                        # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html
+                        # Check also: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L263
+                        old_approx_kl = (-logr).mean().item()
+                        approx_kl = ((logr.exp() - 1) - logr).mean().item()  # k3
+                        clipfracs += [
+                            ((ratio - 1).abs() > args.clip_coef).float().mean().item()
+                        ]
+
+                    # Policy loss (check dim de A y subset con [j])
+                    pg_loss1 = -mb_advantages[j] * ratio
+                    pg_loss2 = -mb_advantages[j] * torch.clamp(
+                        ratio,
+                        1 - args.clip_coef,
+                        1 + args.clip_coef,
+                    )
+                    pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+                    pg_loss_value += pg_loss.item()
+
+                    # Value loss
+                    # estimate the value on the new sample, generate by the
+                    # new policy (prev_sample)
+                    newvalue = value_network(prev_sample)
+                    if args.clip_vloss:
+                        v_loss_unclipped = (newvalue - mb_returns[j]) ** 2
+                        v_clipped = mb_values[j] + torch.clamp(
+                            newvalue - mb_values[j],
+                            -args.clip_coef,
+                            args.clip_coef,
+                        )
+                        v_loss_clipped = (v_clipped - mb_returns[j]) ** 2
+                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                        v_loss = 0.5 * v_loss_max.mean()
+                    else:
+                        v_loss = 0.5 * ((newvalue - mb_returns[j]) ** 2).mean()
+
+                    v_loss_value += v_loss.item()
+
+                    # entropy_loss = current_log_probs.mean()
+                    # loss = pg_loss - args.ent_coef * entropy_loss + + v_loss * args.vf_coef
+                    loss += pg_loss + v_loss * args.vf_coef
+                    loss_value += loss.item()
+                    loss.backward()
+
+                    # aggregate the log ratio between the current and
+                    # original policy
+                    logr += torch.sum(
+                        current_log_probs - mb_logprobs[j].detach(),
+                    )
 
                 torch.nn.utils.clip_grad_norm_(
                     image_pipe.unet.parameters(),
@@ -815,23 +876,19 @@ if __name__ == "__main__":
 
                 optimizer.step()
 
-                global_loss_value += loss
-                pg_loss_value += pg_loss
-                value_loss_value += value_loss
-
                 if args.wandb_logging:
                     wandb.log(
                         {
-                            "loss": loss,
-                            "policy_loss": pg_loss,
-                            "value_loss": value_loss,
-                            "entropy_loss": entropy_loss,
-                            "pct_clipped_ratios": pct_clipped_ratios,
+                            "loss": loss_value,
+                            "policy_loss": pg_loss_value,
+                            "value_loss": v_loss_value,
+                            # "entropy_loss": entropy_loss,
+                            "pct_clipped_ratios": clipfracs,
                             "prob_ratio": wandb.Histogram(
-                                prob_ratio.detach().cpu().numpy(),
+                                ratio.detach().cpu().numpy(),
                             ),
-                            "approx_kl": KL,
-                            "old_approx_kl": old_KL,
+                            "approx_kl": approx_kl,
+                            "old_approx_kl": old_approx_kl,
                             "epoch": epoch,
                             "batch": i,
                             "learning_rate": lr,
@@ -875,6 +932,31 @@ if __name__ == "__main__":
         del pg_inner_loop_losses
         del value_inner_loop_losses
         del global_inner_loop_losses
+
+        del mb_x
+        del mb_advantages
+        del mb_returns
+        del mb_values
+        del mb_logprobs
+        del loss
+        del loss_value
+        del pg_loss1
+        del pg_loss2
+        del pg_loss
+        del newvalue
+        del prev_sample
+        del logratio
+        del ratio
+        del input
+        del scheduler_output
+        del variance
+        del std_dev_t
+        del pred
+        del prev_sample_mean
+        del pg_loss_value
+        del v_loss_value
+        del logr
+        del clipfracs
         flush()
 
         # Start evaluation loop (each args.eval_every_each_epoch)
@@ -896,6 +978,17 @@ if __name__ == "__main__":
                     num_samples=args.num_eval_samples,
                     random_seed=args.eval_rnd_seed,
                 )
+            )
+
+            # compute values and advantages
+            eval_denoised_rds = eval_denoised_rdf.copy()
+
+            logging.info(
+                f"Checking denoised returns shapes: {eval_denoised_rdf.shape}\n -> {eval_denoised_rdf.head(n=3)}"
+            )
+
+            logging.info(
+                f"Checking eval shapes: {eval_value_df.shape}\n -> {eval_value_df.head(n=3)}"
             )
 
             # log the evaluation results in a wandb.Table

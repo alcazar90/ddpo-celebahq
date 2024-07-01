@@ -12,6 +12,20 @@ from ddpo.sampling import calculate_log_probs, sample_from_ddpm_celebahq
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 
+def compute_discounted_returns(rewards, gamma=0.99):
+    # Compute return using discounted reward-on-to-go (T, B)
+    T, B = rewards.shape
+    returns = torch.zeros_like(rewards)
+
+    # Initialize reward-to-go for the last time step
+    returns[-1] = rewards[-1]
+
+    # Iterate over each timestep in reverse order to accumulate discounted rewards
+    for i, t in enumerate(reversed(range(T - 1))):
+        returns[t] = rewards[t] + gamma * returns[t + 1]
+    return returns
+
+
 def compute_loss(
     x_t,
     original_log_probs,
