@@ -930,7 +930,6 @@ if __name__ == "__main__":
                 del std_dev_t
                 del pred
                 del prev_sample_mean
-                del pg_loss_value
                 del v_loss_value
                 del logr
                 del clipfracs
@@ -970,6 +969,9 @@ if __name__ == "__main__":
         del pg_inner_loop_losses
         del value_inner_loop_losses
         del global_inner_loop_losses
+        del global_loss_value
+        del pg_loss_value
+        del value_loss_value
         flush()
 
         # Start evaluation loop (each args.eval_every_each_epoch)
