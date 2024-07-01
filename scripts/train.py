@@ -817,8 +817,8 @@ if __name__ == "__main__":
                     with torch.no_grad():
                         # Follow approximation KL(3) based on: http://joschu.net/blog/kl-approx.html
                         # Check also: https://github.com/vwxyzjn/ppo-implementation-details/blob/fbef824effc284137943ff9c058125435ec68cd3/ppo.py#L263
-                        old_approx_kl = (-logr).mean().item()
-                        approx_kl = ((logr.exp() - 1) - logr).mean().item()  # k3
+                        old_approx_kl = (-logratio).mean().item()
+                        approx_kl = ((ratio - 1) - logratio).mean().item()  # k3
                         clipfracs += [
                             ((ratio - 1).abs() > args.clip_coef).float().mean().item()
                         ]
