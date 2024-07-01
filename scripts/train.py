@@ -234,7 +234,7 @@ def parse_args():
     )
     parser.add_argument(
         "--skip_step_vlosses",
-        action=int,
+        type=int,
         default=1,
         help="Number of steps to skip the value loss calculation",
     )
