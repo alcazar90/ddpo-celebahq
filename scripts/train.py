@@ -769,7 +769,6 @@ if __name__ == "__main__":
                 mb_values = values_chunked[i]
                 mb_logprobs = log_probs_chunked[i]
                 eta = 1.0  # constant
-                loss = 0.0
                 loss_value = 0.0
                 pg_loss_value = 0.0
                 v_loss_value = 0.0
@@ -854,7 +853,7 @@ if __name__ == "__main__":
 
                     # entropy_loss = current_log_probs.mean()
                     # loss = pg_loss - args.ent_coef * entropy_loss + + v_loss * args.vf_coef
-                    loss += pg_loss + v_loss * args.vf_coef
+                    loss = pg_loss + v_loss * args.vf_coef
                     loss_value += loss.item()
                     loss.backward()
 
