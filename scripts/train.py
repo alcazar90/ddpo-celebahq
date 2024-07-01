@@ -232,6 +232,12 @@ def parse_args():
         default=False,
         help="Set torch.autograd.set_detect_anomaly(True) for debbuging",
     )
+    parser.add_argument(
+        "--skip_step_vlosses",
+        action=int,
+        default=1,
+        help="Number of steps to skip the value loss calculation",
+    )
     args = parser.parse_args()
     args.num_batches = int(args.num_samples_per_epoch // args.batch_size)
     if args.initial_lr == args.peak_lr:
@@ -835,25 +841,33 @@ if __name__ == "__main__":
                     # Value loss
                     # estimate the value on the new sample, generate by the
                     # new policy (prev_sample)
-                    newvalue = value_network(prev_sample)
-                    if args.clip_vloss:
-                        v_loss_unclipped = (newvalue - mb_returns[j].detach()) ** 2
-                        v_clipped = mb_values[j] + torch.clamp(
-                            newvalue - mb_values[j],
-                            -args.clip_coef,
-                            args.clip_coef,
-                        )
-                        v_loss_clipped = (v_clipped - mb_returns[j].detach()) ** 2
-                        v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                        v_loss = 0.5 * v_loss_max.mean()
+                    if j > args.skip_step_vlosses:
+                        logging.info("Computing loss with value loss")
+                        newvalue = value_network(prev_sample)
+                        if args.clip_vloss:
+                            v_loss_unclipped = (newvalue - mb_returns[j].detach()) ** 2
+                            v_clipped = mb_values[j] + torch.clamp(
+                                newvalue - mb_values[j],
+                                -args.clip_coef,
+                                args.clip_coef,
+                            )
+                            v_loss_clipped = (v_clipped - mb_returns[j].detach()) ** 2
+                            v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                            v_loss = 0.5 * v_loss_max.mean()
+                        else:
+                            v_loss = (
+                                0.5 * ((newvalue - mb_returns[j].detach()) ** 2).mean()
+                            )
+
+                        v_loss_value += v_loss.item()
+
+                        # entropy_loss = current_log_probs.mean()
+                        # loss = pg_loss - args.ent_coef * entropy_loss + + v_loss * args.vf_coef
+                        loss = pg_loss + v_loss * args.vf_coef
                     else:
-                        v_loss = 0.5 * ((newvalue - mb_returns[j].detach()) ** 2).mean()
+                        logging.info("Computing loss only with policy loss")
+                        loss = pg_loss
 
-                    v_loss_value += v_loss.item()
-
-                    # entropy_loss = current_log_probs.mean()
-                    # loss = pg_loss - args.ent_coef * entropy_loss + + v_loss * args.vf_coef
-                    loss = pg_loss + v_loss * args.vf_coef
                     loss_value += loss.item()
                     loss.backward()
 
@@ -896,6 +910,31 @@ if __name__ == "__main__":
                             ),
                         },
                     )
+                del mb_x
+                del mb_advantages
+                del mb_returns
+                del mb_values
+                del mb_logprobs
+                del loss
+                del loss_value
+                del pg_loss1
+                del pg_loss2
+                del pg_loss
+                del newvalue
+                del prev_sample
+                del logratio
+                del ratio
+                del input
+                del scheduler_output
+                del variance
+                del std_dev_t
+                del pred
+                del prev_sample_mean
+                del pg_loss_value
+                del v_loss_value
+                del logr
+                del clipfracs
+                flush()
 
             global_inner_loop_losses.append(global_loss_value / args.num_batches)
             pg_inner_loop_losses.append(pg_loss_value / args.num_batches)
@@ -931,31 +970,6 @@ if __name__ == "__main__":
         del pg_inner_loop_losses
         del value_inner_loop_losses
         del global_inner_loop_losses
-
-        del mb_x
-        del mb_advantages
-        del mb_returns
-        del mb_values
-        del mb_logprobs
-        del loss
-        del loss_value
-        del pg_loss1
-        del pg_loss2
-        del pg_loss
-        del newvalue
-        del prev_sample
-        del logratio
-        del ratio
-        del input
-        del scheduler_output
-        del variance
-        del std_dev_t
-        del pred
-        del prev_sample_mean
-        del pg_loss_value
-        del v_loss_value
-        del logr
-        del clipfracs
         flush()
 
         # Start evaluation loop (each args.eval_every_each_epoch)
