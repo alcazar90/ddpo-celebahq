@@ -777,7 +777,7 @@ if __name__ == "__main__":
                 clipfracs = []
 
                 if args.norm_adv:
-                    adv = (mb_advantages - mb_advantages.mean()) / (
+                    mb_advantages = (mb_advantages - mb_advantages.mean()) / (
                         mb_advantages.std() + EPS
                     )
 
@@ -824,8 +824,8 @@ if __name__ == "__main__":
                         ]
 
                     # Policy loss (check dim de A y subset con [j])
-                    pg_loss1 = -mb_advantages[j] * ratio
-                    pg_loss2 = -mb_advantages[j] * torch.clamp(
+                    pg_loss1 = -mb_advantages[j].detach() * ratio
+                    pg_loss2 = -mb_advantages[j].detach() * torch.clamp(
                         ratio,
                         1 - args.clip_coef,
                         1 + args.clip_coef,
