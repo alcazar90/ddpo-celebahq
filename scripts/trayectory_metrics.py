@@ -193,6 +193,9 @@ def sample_denoised_data_from_celebahq_intermediate_step(
     # initialize a batch of random noise
     xt = torch.randn(num_samples, 3, 256, 256).to(device)
 
+    print("Initial step: ", initial_step)
+    print("Scheduler initial step: ", int(scheduler.timesteps[initial_step]))
+
     # Generate the noisy images
     for i in range(num_samples):
         noisy_image = add_noise_to_image(final_image_original, int(scheduler.timesteps[initial_step]), scheduler)
