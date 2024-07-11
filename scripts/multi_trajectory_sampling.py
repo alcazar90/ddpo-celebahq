@@ -267,7 +267,7 @@ for seed in eval_seeds:
 
     for step in initial_steps:
         data_intermediate = sample_denoised_data_from_celebahq_intermediate_step(
-            num_samples, scheduler, image_pipe, device, step, data["trajectory"][-1][step], random_seed=rnd_seed
+            num_samples, scheduler, image_pipe, device, step, data["trajectory"][-1], random_seed=rnd_seed
         )
         logging.info("Computing rewards")
         rewards = []
