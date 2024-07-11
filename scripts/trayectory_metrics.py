@@ -182,7 +182,7 @@ def sample_denoised_data_from_celebahq_intermediate_step(
     -------
         dict: Containing in "seed" the rnd_state used for generate samples' trajectories, and in "trajectory", a tensor containing the trajectories of the entire batch (T, B, C, H, W).
     """
-    initial_step = torch.tensor(initial_step).to(device)[0]
+    initial_step = torch.tensor(initial_step).to(device).item()
     obs = {}
 
     if random_seed is not None:
