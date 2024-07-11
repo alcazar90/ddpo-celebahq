@@ -74,7 +74,7 @@ parser.add_argument(
     default=2,
 )
 parser.add_argument(
-    "--initial_setps",
+    "--initial_steps",
     type=str,
     default="[0]",
     help="Steps to start from"
