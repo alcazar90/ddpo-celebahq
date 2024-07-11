@@ -1,6 +1,7 @@
 import torch
 from tqdm import tqdm
 from ddpo.utils import flush
+from ddpo.sampling import add_noise_to_image
 
 def predict_denoised_image(image_pipe, x_t, t, scheduler, device='cuda'):
     """
@@ -112,6 +113,103 @@ def sample_denoised_data_from_celebahq(
     trajectory_denoised = [xt.clone().detach().cpu()]
 
     for i, t in tqdm(enumerate(scheduler.timesteps)):
+        # scale input based on the timestep
+        model_input = scheduler.scale_model_input(xt, t)
+
+        # get the noise prediction
+        with torch.no_grad():
+            noise_pred = image_pipe.unet(model_input, t)["sample"]
+
+        # compute the update sample regarding the scheduler
+        scheduler_output = scheduler.step(noise_pred, t, xt)
+
+        # update x
+        xt = (
+            scheduler_output.prev_sample
+        )  # .prev_sample attribute refer to the backward process (denoising)
+        x_0_hat = (
+            scheduler_output.pred_original_sample
+        )
+        trajectory.append(xt.clone().detach().cpu())
+        trajectory_denoised.append(x_0_hat.clone().detach().cpu())
+        # if t != scheduler.timesteps[-1]:
+        #     trajectory.append(xt.clone().detach().cpu())
+        #     # Compute the predicted denoised image at this step
+        #     x_0_hat = predict_denoised_image(image_pipe, xt, t, scheduler, device)
+        #     trajectory_denoised.append(x_0_hat.clone().detach().cpu())
+        # save tensors each 10 steps and in the last
+
+        # if i % 10 == 0 or i == len(scheduler.timesteps) - 1:
+        #     trajectory.append(xt.clone().detach().cpu())
+
+    # save trajectories in obs' dictionary
+    obs["trajectory"] = trajectory
+    obs["trajectory_denoised"] = trajectory_denoised
+
+    # now we will release the VRAM memory deleting the variable bounded to the VRAM and use flush()
+    del xt
+    del noise_pred
+    del model_input
+    del scheduler_output
+    flush()
+
+    return obs
+
+@torch.no_grad()
+def sample_denoised_data_from_celebahq_intermediate_step(
+    num_samples,
+    scheduler,
+    image_pipe,
+    device,
+    initial_step,
+    final_image_original,
+    random_seed=None,
+):
+    """Sample a batch of trajectories from the google/ddpm-celebahq-256 model using a specified scheduler, image pipeline, reward model, and device.
+    Save only a summary of each trajectories and their corresponding seeds.
+
+    Reference of diffuser sample loop: https://huggingface.co/blog/stable_diffusion
+
+    Args:
+    ----
+        num_samples (int): The number of samples to generate.
+        scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
+        image_pipe (ImagePipeline): The image pipeline object used for processing images.
+        device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
+        random_seed (int, optional): The random seed for reproducibility. Defaults to None.
+
+    Returns:
+    -------
+        dict: Containing in "seed" the rnd_state used for generate samples' trajectories, and in "trajectory", a tensor containing the trajectories of the entire batch (T, B, C, H, W).
+    """
+    obs = {}
+
+    if random_seed is not None:
+        obs["seed"] = random_seed
+        torch.manual_seed(random_seed)
+
+
+
+    # initialize a batch of random noise
+    xt = torch.randn(num_samples, 3, 256, 256).to(device)
+
+    # Generate the noisy images
+    for i in range(num_samples):
+        noisy_image = add_noise_to_image(final_image_original, int(scheduler.timesteps[initial_step]), scheduler)
+        xt[i] = noisy_image
+
+    trajectory = [] #[xt.clone().detach().cpu()]
+    trajectory_denoised = [] #[xt.clone().detach().cpu()]
+
+    for _ in range(initial_step):
+        empty_sample = torch.zeros_like(xt).to(device)
+        trajectory.append(empty_sample)
+        trajectory_denoised.append(empty_sample)
+    
+    trajectory.append(xt)
+
+    for i in range(initial_step, len(scheduler.timesteps)):
+        t = scheduler.timesteps[i]
         # scale input based on the timestep
         model_input = scheduler.scale_model_input(xt, t)
 
