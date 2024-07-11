@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 from ddpo.utils import flush
-from ddpo.sampling import add_noise_to_image
+from ddpo.sampling import add_noise_to_image, sample_from_clusters
 
 def predict_denoised_image(image_pipe, x_t, t, scheduler, device='cuda'):
     """
@@ -182,13 +182,13 @@ def sample_denoised_data_from_celebahq_intermediate_step(
     -------
         dict: Containing in "seed" the rnd_state used for generate samples' trajectories, and in "trajectory", a tensor containing the trajectories of the entire batch (T, B, C, H, W).
     """
+    initial_step = torch.tensor(initial_step).to(device)[0]
     obs = {}
 
     if random_seed is not None:
         obs["seed"] = random_seed
         torch.manual_seed(random_seed)
-
-
+    
 
     # initialize a batch of random noise
     xt = torch.randn(num_samples, 3, 256, 256).to(device)
@@ -203,19 +203,19 @@ def sample_denoised_data_from_celebahq_intermediate_step(
 
     for _ in range(initial_step):
         empty_sample = torch.zeros_like(xt).to(device)
-        trajectory.append(empty_sample)
-        trajectory_denoised.append(empty_sample)
+        trajectory.append(empty_sample.clone().detach().cpu())
+        trajectory_denoised.append(empty_sample.clone().detach().cpu())
     
     trajectory.append(xt)
 
     for i in range(initial_step, len(scheduler.timesteps)):
         t = scheduler.timesteps[i]
         # scale input based on the timestep
-        model_input = scheduler.scale_model_input(xt, t)
+        model_input = scheduler.scale_model_input(xt, timestep=t)
 
         # get the noise prediction
         with torch.no_grad():
-            noise_pred = image_pipe.unet(model_input, t)["sample"]
+            noise_pred = image_pipe.unet(model_input, t).sample
 
         # compute the update sample regarding the scheduler
         scheduler_output = scheduler.step(noise_pred, t, xt)
