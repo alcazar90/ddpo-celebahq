@@ -12,7 +12,7 @@ from diffusers import DDIMScheduler, DDPMPipeline
 from PIL import Image
 from tqdm.auto import tqdm
 
-from ddpo.config import Task
+from ddpo.config import DDPMCheckpoint, Task
 from ddpo.ddpo import (
     compute_loss,
     evaluation_loop,
@@ -39,6 +39,17 @@ def progress_bar(iterable, **kwargs):
 
 def master_bar(iterable, **kwargs):
     return tqdm(iterable, **kwargs)
+
+
+def check_ddpm_ckpt(value):
+    try:
+        # Attempt to match the input value to an enum name
+        return DDPMCheckpoint(value).value
+    except ValueError:
+        # If the value does not match, raise an argparse error
+        raise argparse.ArgumentTypeError(
+            f"{value} is not a valid DDPM checkpoint. Allowed values are: {[ckpt.value for ckpt in DDPMCheckpoint]}"
+        )
 
 
 # Define hyparparameters--------------------------------------------------------
@@ -123,8 +134,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "--ddpm_ckpt",
-    type=str,
-    default="google/ddpm-celebahq-256",
+    type=check_ddpm_ckpt,
+    default=DDPMCheckpoint.CELEBAHQ256.value,
+    help="The DDPM pretrained model checkpoint from Hugging Face. Allowed values are: "
+    + ", ".join([ckpt.value for ckpt in DDPMCheckpoint]),
 )
 parser.add_argument(
     "--run_seed",
@@ -276,30 +289,37 @@ plt.style.use("seaborn-whitegrid")
 torch.backends.cuda.matmul.allow_tf32 = True
 
 # Initialize wandb--------------------------------------------------------------
+# From "google/ddpm-celebahq-256" to "ddpm-celebahq-256"
+pretrained_ddpm = ddpm_ckpt.split("/")[-1]
+pretrained_ddpm = (
+    pretrained_ddpm[: pretrained_ddpm.rfind("-")]
+    + pretrained_ddpm[pretrained_ddpm.rfind("-") + 1 :]
+)
+
 if wandb_logging:
     if task == Task.LAION:
         run = wandb.init(
-            project="ddpo-aesthetic-ddpm-celebahq256",
+            project=f"ddpo-aesthetic-{pretrained_ddpm}",
             config=config,
         )
     elif task == Task.UNDER30:
         run = wandb.init(
-            project="ddpo-under30-ddpm-celebahq256",
+            project=f"ddpo-under30-{pretrained_ddpm}",
             config=config,
         )
     elif task == Task.OVER50:
         run = wandb.init(
-            project="ddpo-over50-ddpm-celebahq256",
+            project=f"ddpo-over50-{pretrained_ddpm}",
             config=config,
         )
     elif task == Task.COMPRESSIBILITY:
         run = wandb.init(
-            project="ddpo-compressibility-ddpm-celebahq256",
+            project=f"ddpo-compressibility-{pretrained_ddpm}",
             config=config,
         )
     elif task == Task.INCOMPRESSIBILITY:
         run = wandb.init(
-            project="ddpo-incompressibility-ddpm-celebahq256",
+            project=f"ddpo-incompressibility-{pretrained_ddpm}",
             config=config,
         )
     logging.info("Logging to wandb successful, run %s", run.name)
