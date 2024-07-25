@@ -76,17 +76,6 @@ parser.add_argument(
     type=str,
     default="cuda" if torch.cuda.is_available() else "cpu",
 )
-# threshold and punishment prameter for under30_old and over50_old rewards
-parser.add_argument(
-    "--threshold",
-    type=float,
-    default=0.6,
-)
-parser.add_argument(
-    "--punishment",
-    type=float,
-    default=-1.0,
-)
 
 
 # parse the arguments
@@ -96,13 +85,11 @@ num_inference_timesteps = args.num_inference_timesteps
 task = args.task
 metadata_path = args.metadata_path
 ckpt_path = args.ckpt_path
+
 ckpt_from_wandb = args.ckpt_from_wandb
 num_batches = args.num_batches
 output_path = args.output_path
 device = args.device
-threshold = args.threshold
-punishment = args.punishment
-
 
 # Verify if file and folder exists for read and write
 # ------------------------------------------------------------------------------
@@ -134,6 +121,8 @@ metadata = pd.read_csv(metadata_path)
 
 # Download google/ddpm-celebahq-256 image pipeline and scheduler & load ckpt
 # ------------------------------------------------------------------------------
+# TODO: Identify and download one of the available pretrained models in
+# ddpo/config.py, DDPMCheckpoint
 image_pipe = DDPMPipeline.from_pretrained("google/ddpm-celebahq-256")
 image_pipe.to(device)
 
@@ -173,15 +162,9 @@ if task == Task.LAION:
         device=device,
     )
 elif task == Task.UNDER30:
-    reward_fn = under30_old(
-        threshold=threshold,
-        punishment=punishment,
-        device=device,
-    )
+    reward_fn = under30_old()
 elif task == Task.OVER50:
     reward_fn = over50_old(
-        threshold=threshold,
-        punishment=punishment,
         device=device,
     )
 elif task == Task.COMPRESSIBILITY:

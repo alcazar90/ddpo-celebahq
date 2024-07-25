@@ -184,17 +184,6 @@ parser.add_argument(
 parser.add_argument(
     "--output_dir", type=str, default=".", help="output directory to save model ckpt"
 )
-# threshold and punishment prameter for under30_old and over50_old rewards
-parser.add_argument(
-    "--threshold",
-    type=float,
-    default=0.6,
-)
-parser.add_argument(
-    "--punishment",
-    type=float,
-    default=-1.0,
-)
 
 args = parser.parse_args()
 
@@ -217,8 +206,6 @@ resume_from_ckpt = args.resume_from_ckpt
 manual_best_reward = args.manual_best_reward
 resume_from_wandb = args.resume_from_wandb
 device = args.device
-threshold = args.threshold
-punishment = args.punishment
 num_batches = num_samples_per_epoch // batch_size
 run_seed = args.run_seed
 eval_every_each_epoch = args.eval_every_each_epoch
@@ -265,10 +252,6 @@ config = {
     "eval_rnd_seed": eval_random_seed,
     "num_eval_samples": num_eval_samples,
 }
-
-if task in (Task.UNDER30, Task.OVER50):
-    config["threshold"] = threshold
-    config["punishment"] = punishment
 
 logging.info("Number batches (`num_samples_per_epoch / batch_size`): %s", num_batches)
 
@@ -344,14 +327,10 @@ if task == Task.LAION:
     )
 elif task == Task.UNDER30:
     reward_model = under30_old(
-        threshold=threshold,
-        punishment=punishment,
         device=device,
     )
 elif task == Task.OVER50:
     reward_model = over50_old(
-        threshold=threshold,
-        punishment=punishment,
         device=device,
     )
 elif task == Task.COMPRESSIBILITY:

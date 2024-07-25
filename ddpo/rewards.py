@@ -27,8 +27,6 @@ def aesthetic_score(
 
 
 def over50_old(
-    threshold: float = 0.6,
-    punishment: float = -1.0,
     device: str = "cuda",
 ) -> Callable[[Any], torch.Tensor]:
     """Calculate the rewards for images with probabilities over 50 years old."""
@@ -55,8 +53,6 @@ def over50_old(
 
 
 def under30_old(
-    threshold: float = 0.6,
-    punishment: float = -1.0,
     device: str = "cuda",
 ) -> Callable[[Any], torch.Tensor]:
     """Calculate the rewards for images with probabilities under 30; years old."""
