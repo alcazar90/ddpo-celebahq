@@ -10,7 +10,7 @@ import torch
 import wandb
 from diffusers import DDIMScheduler, DDPMPipeline
 
-from ddpo.config import Task
+from ddpo.config import DDPMCheckpoint, Task
 from ddpo.rewards import (
     aesthetic_score,
     jpeg_compressibility,
@@ -24,6 +24,20 @@ from ddpo.sampling import sample_data_from_celebahq
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 # Define hyparparameters--------------------------------------------------------
+
+
+# Add argparser validation argument
+def check_ddpm_ckpt(value):
+    try:
+        # Attempt to match the input value to an enum name
+        return DDPMCheckpoint(value).value
+    except ValueError:
+        # If the value does not match, raise an argparse error
+        raise argparse.ArgumentTypeError(
+            f"{value} is not a valid DDPM checkpoint. Allowed values are: {[ckpt.value for ckpt in DDPMCheckpoint]}"
+        )
+
+
 # Using argparse to define hyperparameters
 parser = argparse.ArgumentParser(
     description="Sample from google/ddpm-celebahq-256 ckpt and compute rewards."
@@ -56,6 +70,13 @@ parser.add_argument(
     default="./metadata.csv",
 )
 parser.add_argument(
+    "--ddpm_ckpt",
+    type=check_ddpm_ckpt,
+    default=DDPMCheckpoint.CELEBAHQ256.value,
+    help="The DDPM pretrained model checkpoint from Hugging Face. Allowed values are: "
+    + ", ".join([ckpt.value for ckpt in DDPMCheckpoint]),
+)
+parser.add_argument(
     "--ckpt_path",
     type=str,
     default=None,
@@ -85,6 +106,7 @@ num_inference_timesteps = args.num_inference_timesteps
 task = args.task
 metadata_path = args.metadata_path
 ckpt_path = args.ckpt_path
+ddpm_ckpt = args.ddpm_ckpt
 
 ckpt_from_wandb = args.ckpt_from_wandb
 num_batches = args.num_batches
@@ -119,16 +141,14 @@ if ckpt_path is not None and ckpt_from_wandb is not None:
 # ------------------------------------------------------------------------------
 metadata = pd.read_csv(metadata_path)
 
-# Download google/ddpm-celebahq-256 image pipeline and scheduler & load ckpt
+# Download google/ddpm-models image pipeline and scheduler & load ckpt
 # ------------------------------------------------------------------------------
-# TODO: Identify and download one of the available pretrained models in
-# ddpo/config.py, DDPMCheckpoint
-image_pipe = DDPMPipeline.from_pretrained("google/ddpm-celebahq-256")
+image_pipe = DDPMPipeline.from_pretrained(ddpm_ckpt)
 image_pipe.to(device)
 
 
 # Create new scheduler and set num inference steps
-scheduler = DDIMScheduler.from_pretrained("google/ddpm-celebahq-256")
+scheduler = DDIMScheduler.from_pretrained(ddpm_ckpt)
 scheduler.set_timesteps(num_inference_steps=num_inference_timesteps)
 
 # Load a ckpt if ckpt_path or ckpt_from_wandb is provided
@@ -233,6 +253,7 @@ pkl_files = [file for file in all_files if file.endswith(".pkl")]
 # Create a dataframe with the random seeds and the batch name
 out_metadata = pd.DataFrame(
     {
+        "ddpm_ckpt": [ddpm_ckpt] * len(pkl_files),
         "id": range(len(pkl_files)),
         "task": [task] * len(pkl_files),
         "random_seed": seeds,
