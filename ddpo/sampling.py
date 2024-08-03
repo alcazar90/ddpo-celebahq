@@ -187,3 +187,45 @@ def sample_data_from_celebahq(
     flush()
 
     return obs
+
+
+@torch.no_grad()
+def sample_from_ddpm(
+    num_samples,
+    scheduler,
+    image_pipe,
+    device,
+    random_seed=None,
+):
+    """Sample from a DDPM model using a specified scheduler, image pipeline, and device. Requires Hugging Face diffuser library."""
+    if random_seed is not None:
+        torch.manual_seed(random_seed)
+
+    # initialize a batch of random noise
+    xt = torch.randn(num_samples, 3, 256, 256).to(device)
+
+    for i, t in tqdm(enumerate(scheduler.timesteps)):
+        # scale input based on the timestep
+        model_input = scheduler.scale_model_input(xt, t)
+
+        # get the noise prediction
+        with torch.no_grad():
+            noise_pred = image_pipe.unet(model_input, t)["sample"]
+
+        # compute the update sample regarding the scheduler
+        scheduler_output = scheduler.step(noise_pred, t, xt)
+
+        # update x
+        xt = (
+            scheduler_output.prev_sample
+        )  # .prev_sample attribute refer to the backward process (denoising)
+
+    # now we will release the VRAM memory deleting the variable bounded to the VRAM and use flush()
+    samples = xt.detach().cpu()
+    del xt
+    del noise_pred
+    del model_input
+    del scheduler_output
+    flush()
+
+    return samples
