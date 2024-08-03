@@ -86,9 +86,10 @@ def parse_args():
         help="Provide the path from W&B model artifact (e.g. alcazar90/ddpo-compressibility-ddpm-celebahq256/Task.COMPRESSIBILITY-generous-deluge-8:v17)",
     )
     parser.add_argument(
-        "--num_batches",
+        "--start_from",
         type=int,
-        default=2,
+        default=0,
+        help="The row index to start from in the metadata file.",
     )
     parser.add_argument(
         "--device",
@@ -252,7 +253,7 @@ elif args.task == Task.INCOMPRESSIBILITY:
 
 # Running the sampling process, compute metrics and save the results
 # ------------------------------------------------------------------------------
-for row_idx in range(metadata.shape[0]):
+for row_idx in range(args.start_from, metadata.shape[0]):
     batch_idx = metadata["id"][row_idx]
     random_seed = metadata["random_seed"][row_idx]
 
