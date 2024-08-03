@@ -264,6 +264,7 @@ for row_idx in range(metadata.shape[0]):
         scheduler=scheduler,
         image_pipe=image_pipe,
         device=args.device,
+        random_seed=random_seed,
     )
 
     logging.info("Computing rewards")
