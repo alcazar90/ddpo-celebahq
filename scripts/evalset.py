@@ -256,7 +256,7 @@ for row_idx in range(metadata.shape[0]):
     batch_idx = metadata["id"][row_idx]
     random_seed = metadata["random_seed"][row_idx]
 
-    logging.info("Processing batch %d", batch_idx)
+    logging.info("Processing batch %d - Using seed %d", batch_idx, random_seed)
 
     # Get the batch images
     batch_images = sample_from_ddpm(
