@@ -177,6 +177,11 @@ def stack_csv_files(directory):
 if not os.path.exists(args.metadata_path):
     raise FileNotFoundError("metadata.csv file not found in %s", args.metadata_path)
 
+# Check if the output folder exists. If not, create it
+if not os.path.exists(args.output_path):
+    logging.info("Creating output folder %s", args.output_path)
+    os.makedirs(args.output_path)
+
 # Check if ckpt_path and ckpt_from_wandb are both provided
 if args.ckpt_path is not None and args.ckpt_from_wandb is not None:
     raise ValueError(
@@ -265,16 +270,16 @@ for row_idx in range(metadata.shape[0]):
     # Compute rewards and save rewards into a CSV
     rwds = reward_fn(batch_images)
 
-    save_rewards(rwds, "rewards", batch_idx, args.num_samples)
+    save_rewards(rwds, f"{args.output_path}/rewards", batch_idx, args.num_samples)
     logging.info("Rewards saved successfully!")
 
     # Save images in png format
-    save_images(batch_images, "samples", batch_idx, start_idx=0)
+    save_images(batch_images, f"{args.output_path}/samples", batch_idx, start_idx=0)
     logging.info("Images saved successfully!")
 
 
 # At the end stack the reward CSV and save in the same folder that png images
 logging.info("Stacking rewards CSV files")
-stacked_df = stack_csv_files("rewards")
-stacked_df.to_csv("./samples/rewards.csv", index=False)
+stacked_df = stack_csv_files(f"{args.output_path}/rewards")
+stacked_df.to_csv(f"{args.output_path}/rewards.csv", index=False)
 logging.info("Reward CSV files stacked and saved successfully!")
