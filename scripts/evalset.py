@@ -17,6 +17,7 @@ from ddpo.rewards import (
     under30_old,
 )
 from ddpo.sampling import sample_from_ddpm
+from ddpo.utils import flush
 
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -230,6 +231,8 @@ if args.ckpt_path is not None or args.ckpt_from_wandb is not None:
         logging.info("Loading ckpt from %s", ckpt_path)
     # Load the model state dict
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
+    del ckpt
+    flush()
     logging.info("Ckpt loaded successfully!")
 
 # Set the model to eval mode
