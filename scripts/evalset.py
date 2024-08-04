@@ -92,6 +92,11 @@ def parse_args():
         help="The row index to start from in the metadata file.",
     )
     parser.add_argument(
+        "--until_to",
+        type=int,
+        help="Index of the batch to process until",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="cuda" if torch.cuda.is_available() else "cpu",
@@ -253,7 +258,7 @@ elif args.task == Task.INCOMPRESSIBILITY:
 
 # Running the sampling process, compute metrics and save the results
 # ------------------------------------------------------------------------------
-for row_idx in range(args.start_from, metadata.shape[0]):
+for row_idx in range(args.start_from, min(metadata.shape[0], args.until_to + 1)):
     batch_idx = metadata["id"][row_idx]
     random_seed = metadata["random_seed"][row_idx]
 
