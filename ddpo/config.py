@@ -22,3 +22,6 @@ class DDPMCheckpoint(Enum):
     CELEBAHQ256 = "google/ddpm-celebahq-256"
     CHURCH256 = "google/ddpm-church-256"
     BEDROOM256 = "google/ddpm-bedroom-256"
+    DDPO_AESTHETIC_CELEBAHQ = "alkzar90/ddpo-aesthetic-celebahq-256"
+    DDPO_COMPRESSIBILITY_CELEBAHQ = "alkzar90/ddpo-compressibility-celebahq-256"
+    DDPO_INCOMPRESSIBILITY_CELEBAHQ = "alkzar90/ddpo-incompressibility-celebahq-256"
