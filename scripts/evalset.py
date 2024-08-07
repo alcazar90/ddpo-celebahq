@@ -226,9 +226,9 @@ if args.ckpt_path is not None or args.ckpt_from_wandb is not None:
         )
         ckpt = torch.load(ckpt_path)
         logging.info("Loading ckpt from %s", ckpt_path)
-    if ckpt_path is not None:
-        ckpt = torch.load(ckpt_path)
-        logging.info("Loading ckpt from %s", ckpt_path)
+    if args.ckpt_path is not None:
+        ckpt = torch.load(args.ckpt_path)
+        logging.info("Loading ckpt from %s", args.ckpt_path)
     # Load the model state dict
     image_pipe.unet.load_state_dict(ckpt["model_state_dict"])
     del ckpt
