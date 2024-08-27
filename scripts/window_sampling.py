@@ -285,7 +285,7 @@ for seed in eval_seeds:
         data_intermediate[f"rewards_{step}"] = torch.stack(rewards).view(-1).tolist()
         logging.info(
             "Rewards size %s",
-            len(data_intermediate["rewards"])
+            len(data_intermediate[f"rewards_{step}"])
         )
         logging.info("Rewards computed successfully!")
 
