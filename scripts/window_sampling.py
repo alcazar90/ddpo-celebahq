@@ -252,7 +252,7 @@ for seed in eval_seeds:
     rewards = []
     for xt in data["final_images"]:
         if  task == Task.MULTITASK:
-            rewards.append([reward(xt.to(device)).cpu() for reward in reward_fn])
+            rewards.append(torch.cat([reward(xt.to(device)).cpu() for reward in reward_fn], dim=0))
         else:
             rewards.append(reward_fn(xt.to(device)).cpu())
     data["rewards"] = torch.stack(rewards).view(-1).tolist()
@@ -279,7 +279,7 @@ for seed in eval_seeds:
         rewards = []
         for xt in data_intermediate[f"final_images_{step}"]:
             if task == Task.MULTITASK:
-                rewards.append([reward(xt.to(device)).cpu() for reward in reward_fn])
+                rewards.append(torch.cat([reward(xt.to(device)).cpu() for reward in reward_fn], dim=0))
             else:
                 rewards.append(reward_fn(xt.to(device)).cpu())
         data_intermediate[f"rewards_{step}"] = torch.stack(rewards).view(-1).tolist()
