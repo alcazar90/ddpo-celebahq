@@ -208,6 +208,10 @@ elif task == Task.INCOMPRESSIBILITY:
     reward_fn = jpeg_incompressibility(
         device=device,
     )
+elif task == Task.MULTITASK:
+    reward_fn =[aesthetic_score(device=device),
+                jpeg_compressibility(device=device), 
+                jpeg_incompressibility(device=device)]
 
 
 # Running the sampling process, compute metrics and save the results
@@ -229,12 +233,12 @@ for seed in eval_seeds:
     seeds.append(rnd_seed)
 
     # sample # num_saples from ddpm-celebahq-256 with current rnd_seed
+    initial_num_samples = 1
     logging.info(
-        "Get #%s from the model with random seed (and key): %s", num_samples, rnd_seed
+        "Get #%s from the model with random seed (and key): %s", initial_num_samples, rnd_seed
     )
-
     data = sample_denoised_images_from_celebahq(
-        num_samples, scheduler, image_pipe, device, random_seed=rnd_seed
+        initial_num_samples, scheduler, image_pipe, device, random_seed=rnd_seed
     )
     # # Optionally predict and store denoised images
     # if need_denoised_images:  # This flag determines when to compute denoised images
@@ -247,12 +251,14 @@ for seed in eval_seeds:
     logging.info("Computing rewards")
     rewards = []
     for xt in data["final_images"]:
-        rewards.append(reward_fn(xt.to(device)).cpu())
+        if  task == Task.MULTITASK:
+            rewards.append([reward(xt.to(device)).cpu() for reward in reward_fn])
+        else:
+            rewards.append(reward_fn(xt.to(device)).cpu())
     data["rewards"] = torch.stack(rewards).view(-1).tolist()
     logging.info(
-        "Rewards size %s | First 5 rewards: %s",
-        len(data["rewards"]),
-        data["rewards"][:5],
+        "Rewards size %s : ",
+        len(data["rewards"])
     )
     logging.info("Rewards computed successfully!")
 
@@ -271,13 +277,15 @@ for seed in eval_seeds:
         )
         logging.info("Computing rewards")
         rewards = []
-        for xt in data_intermediate["final_images"]:
-            rewards.append(reward_fn(xt.to(device)).cpu())
-        data_intermediate["rewards"] = torch.stack(rewards).view(-1).tolist()
+        for xt in data_intermediate[f"final_images_{step}"]:
+            if task == Task.MULTITASK:
+                rewards.append([reward(xt.to(device)).cpu() for reward in reward_fn])
+            else:
+                rewards.append(reward_fn(xt.to(device)).cpu())
+        data_intermediate[f"rewards_{step}"] = torch.stack(rewards).view(-1).tolist()
         logging.info(
-            "Rewards size %s | First 5 rewards: %s",
-            len(data_intermediate["rewards"]),
-            data_intermediate["rewards"][:5],
+            "Rewards size %s",
+            len(data_intermediate["rewards"])
         )
         logging.info("Rewards computed successfully!")
 

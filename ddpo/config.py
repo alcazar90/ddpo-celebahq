@@ -14,3 +14,4 @@ class Task(Enum):
     OVER50 = "over50 years old"
     COMPRESSIBILITY = "jpeg compressibility"
     INCOMPRESSIBILITY = "jpeg incompressibility"
+    MULTITASK = "multi-task"

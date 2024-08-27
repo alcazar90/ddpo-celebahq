@@ -433,7 +433,7 @@ def sample_denoised_images_from_celebahq_intermediate_step(
         #     trajectory.append(xt.clone().detach().cpu())
 
     # save trajectories in obs' dictionary
-    obs["final_images"] = final_image
+    obs[f"final_images_{initial_step}"] = final_image
     # obs["trajectory_denoised"] = trajectory_denoised
 
     # now we will release the VRAM memory deleting the variable bounded to the VRAM and use flush()
