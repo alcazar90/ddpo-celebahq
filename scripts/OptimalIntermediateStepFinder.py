@@ -81,14 +81,22 @@ class OptimalIntermediateStepFinder:
             images_key = f"final_images_{step}"
             sampled_images = data_intermediate[images_key]
 
-            # Compute rewards for these images
+             # Compute rewards for these images
             rewards = []
             for img in sampled_images:
-                img_tensor = self._prepare_image(img)
-                reward = self.reward_fn(img_tensor.to(self.device)).cpu().item()
-                rewards.append(reward)
-            mean_reward = np.mean(rewards)
-            self.mean_rewards_per_step[step] = mean_reward
+                img_tensor = img.to(self.device)
+                if self.task == 'MULTITASK':
+                    reward_values = [reward(img_tensor).cpu() for reward in self.reward_fn]
+                    reward_tensor = torch.cat(reward_values, dim=0)  # Tensor of shape [num_rewards]
+                    rewards.append(reward_tensor)
+                else:
+                    reward_value = self.reward_fn[0](img_tensor).cpu()
+                    rewards.append(reward_value)
+            # Stack rewards
+            rewards_tensor = torch.stack(rewards)  # Shape: [num_samples, num_rewards]
+            # Compute mean reward per reward component
+            mean_rewards = torch.mean(rewards_tensor, dim=0).numpy()  # Shape: [num_rewards]
+            self.mean_rewards_per_step[step] = mean_rewards
 
             # Compute distances for these images
             distances = []
