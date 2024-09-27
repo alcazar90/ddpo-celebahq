@@ -499,7 +499,7 @@ for epoch in master_bar(range(num_epochs)):
             num_iters_per_cluster,
             initial_batch_all_step_preds[-1][i],
             random_seed=run_seed,
-            initial_step=optimal_step[i])
+            initial_step=optimal_steps[i])
         # compute reward on the final step (sample), and obtain advantages
         batch_rewards = reward_model(batch_all_step_preds[-1])
         batch_advantages = standardize(batch_rewards)
