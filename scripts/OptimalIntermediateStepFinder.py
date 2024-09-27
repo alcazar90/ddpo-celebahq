@@ -103,7 +103,7 @@ class OptimalIntermediateStepFinder:
             # Compute distances for these images
             distances = []
             for img in sampled_images:
-                distance = self._compute_cosine_distance(img.to(self.device), self.initial_image)
+                distance = self._compute_cosine_distance(img[0].to(self.device), self.initial_image)
                 distances.append(distance)
             mean_distance = np.mean(distances)
             self.mean_distances_per_step[step] = mean_distance
