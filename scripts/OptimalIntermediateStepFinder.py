@@ -157,6 +157,8 @@ class OptimalIntermediateStepFinder:
         steps = self.initial_steps
         mean_rewards = [self.mean_rewards_per_step[step] for step in steps]
         mean_distances = [self.mean_distances_per_step[step] for step in steps]
+        logging.info(f'mean rewards: {mean_rewards}')
+        logging.info(f'mean distances: {mean_distances}')
 
         # Normalize rewards and distances
         norm_rewards = self._normalize(mean_rewards)
