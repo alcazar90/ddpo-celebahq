@@ -450,7 +450,8 @@ for epoch in master_bar(range(num_epochs)):
     optimal_steps = []
 
     # Loop over your initial images
-    for i in tqdm(range(num_initial_images), desc="Processing Initial Images"):
+    #for i in tqdm(range(num_initial_images), desc="Processing Initial Images"):
+    for i in progress_bar(range(num_batches)):
         # Access the initial image
         initial_image = initial_batch_all_step_preds[-1][i]
 
