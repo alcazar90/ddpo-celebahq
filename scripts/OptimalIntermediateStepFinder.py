@@ -92,7 +92,7 @@ class OptimalIntermediateStepFinder:
                     reward_tensor = torch.cat(reward_values, dim=0)  # Tensor of shape [num_rewards]
                     rewards.append(reward_tensor)
                 else:
-                    reward_value = self.reward_fn[0](img_tensor).cpu()
+                    reward_value = self.reward_fn(img_tensor).cpu()
                     rewards.append(reward_value)
             # Stack rewards
             rewards_tensor = torch.stack(rewards)  # Shape: [num_samples, num_rewards]
