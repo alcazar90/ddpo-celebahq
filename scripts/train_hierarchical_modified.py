@@ -29,7 +29,7 @@ from ddpo.rewards import (
 )
 from ddpo.sampling import sample_from_ddpm_celebahq, improved_sample_from_ddpm_celebahq, improved_sample_from_ddpm_celebahq_initial_step
 from ddpo.utils import decode_tensor_to_np_img, flush
-from scripts.OptimalIntermediateStepFinder import OptimalIntermediateStepFinder
+from OptimalIntermediateStepFinder import OptimalIntermediateStepFinder
 
 # Set up logging----------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
@@ -388,6 +388,7 @@ if resume_from_wandb is not None:
 
 # Training Loop-----------------------------------------------------------------
 logging.info("Initializing RL training loop...")
+
 
 mean_rewards = []
 epoch_loss = []
