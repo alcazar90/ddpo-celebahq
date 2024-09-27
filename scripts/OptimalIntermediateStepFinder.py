@@ -62,6 +62,7 @@ class OptimalIntermediateStepFinder:
         # Set up logging
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
+    @torch.no_grad()
     def sample_from_intermediate_steps(self):
         """
         Sample images from various intermediate steps starting from the initial image.
@@ -95,13 +96,13 @@ class OptimalIntermediateStepFinder:
                     reward_value = self.reward_fn(img_tensor).cpu()
                     rewards.append(reward_value)
             # Stack rewards
-            logging.info(f'rewards raw {rewards}')
+            #logging.info(f'rewards raw {rewards}')
             rewards_tensor = torch.stack(rewards)  # Shape: [num_samples, num_rewards]
-            logging.info(f'rewards tensor {rewards_tensor}')
+            #logging.info(f'rewards tensor {rewards_tensor}')
             # Compute mean reward per reward component
             #mean_rewards = torch.mean(rewards_tensor, dim=0).numpy()  # Shape: [num_rewards]
             mean_reward = torch.mean(rewards_tensor).item()  # Scalar value
-            logging.info(f'mean_rewards {mean_reward}')
+            #logging.info(f'mean_rewards {mean_reward}')
             self.mean_rewards_per_step[step] = mean_reward
 
             # Compute distances for these images
@@ -244,6 +245,7 @@ def sample_denoised_images_from_celebahq_intermediate_step(
     del noise_pred
     del model_input
     del scheduler_output
+    del noisy_image
     torch.cuda.empty_cache()
 
     return obs
