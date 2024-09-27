@@ -232,6 +232,127 @@ def improved_sample_from_ddpm_celebahq_initial_step(
     initial_sample_full_image,
     eta=1,
     random_seed=None,
+    initial_step = None
+):
+    """Sample a batch of trajectories from the google/ddpm-celebahq-256 model using a specified scheduler, image pipeline, reward model, and device.
+    Compute their log probabilities at each timestep and return the trajectories and log probabilities.
+
+    Reference of diffuser sample loop: https://huggingface.co/blog/stable_diffusion
+
+    Args:
+    ----
+        num_samples (int): The number of samples to generate.
+        scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
+        image_pipe (ImagePipeline): The image pipeline object used for processing images.
+        device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
+        random_seed (int, optional): The random seed for reproducibility. Defaults to None.
+        initial_sample_full_image (image): final sample to obtain noisy version and start sampling from it
+
+    Returns:
+    -------
+        tensor: A tensor containing the trajectories of the entire batach (T, B, C, H, W).
+        tensor: A tensor containing the log probabilities of the trajectories (T, B).
+
+    """
+    if random_seed:
+        torch.manual_seed(random_seed)
+    if initial_step is None:
+        initiate_train_steps  = sample_from_clusters(num_samples,epoch, num_epochs,clusters,n_iters, device)
+    if initial_step is not None:
+        initiate_train_steps = initial_step
+    
+    num_inference_steps = scheduler.num_inference_steps
+
+    # initialize a batch of random noise
+    # Initialize the tensor to store all noisy images
+    xt = torch.zeros((num_samples, 3, 256, 256)).to(device)
+
+    # Generate the noisy images
+    for i in range(num_samples):
+        noisy_image = add_noise_to_image(initial_sample_full_image, int(scheduler.timesteps[initiate_train_steps]), scheduler)
+        xt[i] = noisy_image
+    # save initial state x_T and intermediate steps, saave log_probs for the trajectory
+    trajectory, log_probs = [], []
+
+    for _ in range(initiate_train_steps):
+        empty_sample = torch.zeros_like(xt).to(device)
+        trajectory.append(empty_sample)
+    
+    trajectory.append(xt)
+    
+    for _ in range(initiate_train_steps):
+        empty_log_prob = torch.zeros((num_samples,)).to(device)
+        log_probs.append(empty_log_prob)
+    # initiate_train_steps = sample_timesteps(num_samples, len(scheduler.timesteps), epoch, num_epochs,scheduler, mean_zone_interest_sampling, 40, 39, 41, device)
+    # (num_samples, current_iteration, total_epochs, clusters, n_iters, device)
+
+    for i in range(initiate_train_steps, len(scheduler.timesteps)):
+        t = scheduler.timesteps[i]
+        # [S] scale input based on the timestep
+        model_input = scheduler.scale_model_input(xt, timestep=t)
+
+        # [S] get the noise prediction (unet predicts noise residual)
+        noise_pred = image_pipe.unet(model_input, t).sample
+
+        # [S] using the prediction noise we can predict the denoised image representation
+        # compute the "previous" noisy sample mean
+        scheduler_output = scheduler.step(noise_pred, t, xt, eta, variance_noise=0)
+        prev_sample_mean = (
+            scheduler_output.prev_sample
+        )  # this is the mean and not full sample since variance is 0
+
+        # [S] compute variance between two timesteps, considering the jumps between training and inference timesteps
+        t_1 = t - scheduler.config.num_train_timesteps // num_inference_steps
+        variance = scheduler._get_variance(t, t_1)
+        std_dev_t = eta * variance ** (0.5)
+
+        # [S] generate new samples using re-parametrization trick
+        prev_sample = (
+            prev_sample_mean + torch.randn_like(prev_sample_mean) * std_dev_t
+        )  # get full sample by adding noise
+
+        # [S] compute the log probs of the new sample
+        log_probs.append(
+            calculate_log_probs(prev_sample, prev_sample_mean, std_dev_t).mean(
+                dim=tuple(range(1, prev_sample_mean.ndim)),
+            ),
+        )
+
+        trajectory.append(prev_sample)
+        xt = prev_sample
+
+    # now we will release the VRAM memory deleting the variable bounded to the VRAM and use flush()
+    del xt
+    del model_input
+    del noise_pred
+    del scheduler_output
+    del prev_sample_mean
+    del prev_sample
+    del variance
+    del std_dev_t
+    del num_inference_steps
+    flush()
+
+    # The dimensions of the tensor are: (T+1, B, C, H, W), (T, B), (B, 1)
+    return torch.stack(trajectory), torch.stack(log_probs), initiate_train_steps
+
+###### Sampling from initial steps utils and fucntions #####
+
+@torch.no_grad()
+def improved_sample_from_ddpm_celebahq_list_initial_steps(
+    num_samples,  # noqa: ANN001
+    scheduler,
+    image_pipe,
+    device,
+    epoch,
+    num_epochs,
+    mean_zone_interest_sampling,
+    num_of_segments,
+    clusters,
+    n_iters,
+    initial_sample_full_image,
+    eta=1,
+    random_seed=None,
 ):
     """Sample a batch of trajectories from the google/ddpm-celebahq-256 model using a specified scheduler, image pipeline, reward model, and device.
     Compute their log probabilities at each timestep and return the trajectories and log probabilities.
@@ -332,6 +453,110 @@ def improved_sample_from_ddpm_celebahq_initial_step(
 
     # The dimensions of the tensor are: (T+1, B, C, H, W), (T, B), (B, 1)
     return torch.stack(trajectory), torch.stack(log_probs), initiate_train_steps
+
+
+@torch.no_grad()
+def sample_denoised_images_from_celebahq_intermediate_step(
+    num_samples,
+    scheduler,
+    image_pipe,
+    device,
+    initial_step,
+    final_image_original,
+    random_seed=None,
+):
+    """Sample a batch of trajectories from the google/ddpm-celebahq-256 model using a specified scheduler, image pipeline, reward model, and device.
+    Save only a summary of each trajectories and their corresponding seeds.
+
+    Reference of diffuser sample loop: https://huggingface.co/blog/stable_diffusion
+
+    Args:
+    ----
+        num_samples (int): The number of samples to generate.
+        scheduler (DDIMScheduler): The scheduler object that controls the sampling process.
+        image_pipe (ImagePipeline): The image pipeline object used for processing images.
+        device (torch.device): The device (e.g., 'cuda' or 'cpu') on which to perform computations.
+        random_seed (int, optional): The random seed for reproducibility. Defaults to None.
+
+    Returns:
+    -------
+        dict: Containing in "seed" the rnd_state used for generate samples' trajectories, and in "trajectory", a tensor containing the trajectories of the entire batch (T, B, C, H, W).
+    """
+    initial_step = torch.tensor(initial_step).to(device).item()
+    obs = {}
+
+    if random_seed is not None:
+        obs["seed"] = random_seed
+        torch.manual_seed(random_seed)
+    
+
+    # initialize a batch of random noise
+    xt = torch.randn(num_samples, 3, 256, 256).to(device)
+
+    print("Initial step: ", initial_step)
+    print("Scheduler initial step: ", int(scheduler.timesteps[initial_step]))
+
+    # Generate the noisy images
+    for i in range(num_samples):
+        noisy_image = add_noise_to_image(final_image_original, int(scheduler.timesteps[initial_step]), scheduler)
+        xt[i] = noisy_image
+
+    # trajectory = [] #[xt.clone().detach().cpu()]
+    # trajectory_denoised = [] #[xt.clone().detach().cpu()]
+    final_image = []
+
+    for _ in range(initial_step):
+        empty_sample = torch.zeros_like(xt).to(device)
+        # trajectory.append(empty_sample.clone().detach().cpu())
+        # trajectory_denoised.append(empty_sample.clone().detach().cpu())
+    
+    # trajectory.append(xt)
+
+    for i in range(initial_step, len(scheduler.timesteps)):
+        t = scheduler.timesteps[i]
+        # scale input based on the timestep
+        model_input = scheduler.scale_model_input(xt, timestep=t)
+
+        # get the noise prediction
+        with torch.no_grad():
+            noise_pred = image_pipe.unet(model_input, t).sample
+
+        # compute the update sample regarding the scheduler
+        scheduler_output = scheduler.step(noise_pred, t, xt)
+
+        # update x
+        xt = (
+            scheduler_output.prev_sample
+        )  # .prev_sample attribute refer to the backward process (denoising)
+        x_0_hat = (
+            scheduler_output.pred_original_sample
+        )
+        if t == scheduler.timesteps[-1]:
+            final_image.append(x_0_hat.clone().detach().cpu())
+        # trajectory.append(xt.clone().detach().cpu())
+        # trajectory_denoised.append(x_0_hat.clone().detach().cpu())
+        # if t != scheduler.timesteps[-1]:
+        #     trajectory.append(xt.clone().detach().cpu())
+        #     # Compute the predicted denoised image at this step
+        #     x_0_hat = predict_denoised_image(image_pipe, xt, t, scheduler, device)
+        #     trajectory_denoised.append(x_0_hat.clone().detach().cpu())
+        # save tensors each 10 steps and in the last
+
+        # if i % 10 == 0 or i == len(scheduler.timesteps) - 1:
+        #     trajectory.append(xt.clone().detach().cpu())
+
+    # save trajectories in obs' dictionary
+    obs[f"final_images_{initial_step}"] = final_image
+    # obs["trajectory_denoised"] = trajectory_denoised
+
+    # now we will release the VRAM memory deleting the variable bounded to the VRAM and use flush()
+    del xt
+    del noise_pred
+    del model_input
+    del scheduler_output
+    flush()
+
+    return obs
 
 @torch.no_grad()
 def sample_data_from_celebahq(
