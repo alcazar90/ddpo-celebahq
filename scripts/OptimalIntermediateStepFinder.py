@@ -69,7 +69,7 @@ class OptimalIntermediateStepFinder:
         """
         logging.info("Sampling from intermediate steps...")
         for step in self.initial_steps:
-            logging.info(f"Sampling from step {step}")
+            #logging.info(f"Sampling from step {step}")
             # Use the provided sampling function
             data_intermediate = sample_denoised_images_from_celebahq_intermediate_step(
                 num_samples=self.num_samples,
