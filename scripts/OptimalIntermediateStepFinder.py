@@ -37,7 +37,8 @@ class OptimalIntermediateStepFinder:
         num_samples=25,
         initial_steps=None,
         beta=1.0,  # Weighting factor for combining rewards and distance metrics
-        random_seed=None
+        random_seed=None,
+        task = None
     ):
         """
         Initialize the class with necessary parameters.
@@ -51,6 +52,7 @@ class OptimalIntermediateStepFinder:
         self.initial_steps = initial_steps if initial_steps is not None else [0]
         self.beta = beta
         self.random_seed = random_seed
+        self.task = task
 
         # Data storage
         self.mean_rewards_per_step = {}
