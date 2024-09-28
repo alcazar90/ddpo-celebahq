@@ -161,13 +161,15 @@ class OptimalIntermediateStepFinder:
         logging.info("Determining optimal intermediate step...")
         steps = self.initial_steps
         mean_rewards = [self.mean_rewards_per_step[step] for step in steps]
+        mean_rewards_variation = [mean_rewards[i+1] - mean_rewards[i] for i in range(len(mean_rewards)-1)]
         mean_distances = [self.mean_distances_per_step[step] for step in steps]
         logging.info(f'mean rewards: {mean_rewards}')
+        logging.info(f'mean rewards variation: {mean_rewards_variation}')
         logging.info(f'mean distances: {mean_distances}')
 
         # Normalize rewards and distances
-        norm_rewards = self._normalize(mean_rewards)
-        norm_distances = self._normalize(mean_distances)
+        norm_rewards = self._normalize(mean_rewards_variation) # mean_rewards if not variation we are interested in
+        norm_distances = self._normalize(mean_distances[1:])
 
         # Compute combined metric
         combined_metric = [r - self.beta * d for r, d in zip(norm_rewards, norm_distances)]
