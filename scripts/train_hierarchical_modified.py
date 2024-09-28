@@ -411,7 +411,10 @@ if resume_from_ckpt is not None:
             best_reward,
         )
 
+run_seed_moving = run_seed
+
 for epoch in master_bar(range(num_epochs)):
+
     logging.info("Epoch: %s", epoch + 1)
     if wandb_logging:
         logging.info("Close all open figures before starting the epoch...")
@@ -439,7 +442,7 @@ for epoch in master_bar(range(num_epochs)):
             num_of_segments,
             clusters,
             num_iters_per_cluster,
-            random_seed=run_seed
+            random_seed=run_seed_moving
             )
         
     # We now determine the optimal initial step to sample the trajectories 
@@ -473,7 +476,7 @@ for epoch in master_bar(range(num_epochs)):
             num_samples=batch_size,
             initial_steps=list(range(0, 40, 2)),  # Adjust as needed
             beta=beta_optimal_reward,
-            random_seed=run_seed  # Or any other seed for reproducibility
+            random_seed=run_seed_moving  # Or any other seed for reproducibility
         )
 
         # Run the process to find the optimal intermediate step
@@ -499,7 +502,7 @@ for epoch in master_bar(range(num_epochs)):
             clusters,
             num_iters_per_cluster,
             initial_batch_all_step_preds[-1][i],
-            random_seed=run_seed,
+            random_seed=run_seed_moving,
             initial_step=optimal_steps[i])
         # compute reward on the final step (sample), and obtain advantages
         batch_rewards = reward_model(batch_all_step_preds[-1])
@@ -742,6 +745,8 @@ for epoch in master_bar(range(num_epochs)):
     del all_step_preds_chunked
     del log_probs_chunked
     del advantages_chunked
+
+    run_seed_moving+=1
 
     flush()
 
