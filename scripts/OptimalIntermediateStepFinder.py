@@ -176,7 +176,7 @@ class OptimalIntermediateStepFinder:
 
         # Identify the step with the maximum combined metric
         max_index = np.argmax(combined_metric)
-        self.optimal_step = steps[max_index-1] # get the previous step so the policy that is favores is acted upon
+        self.optimal_step = steps[max_index] # get the previous step so the policy that is favores is acted upon
 
         logging.info(f"Optimal intermediate step determined: {self.optimal_step}, with best acted step: {steps[max_index]}")
 
