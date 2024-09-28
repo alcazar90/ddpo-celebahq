@@ -471,7 +471,7 @@ for epoch in master_bar(range(num_epochs)):
             reward_fn=reward_model,
             device='cuda',
             num_samples=batch_size,
-            initial_steps=list(range(0, 40)),  # Adjust as needed
+            initial_steps=list(range(0, 40, 2)),  # Adjust as needed
             beta=beta_optimal_reward,
             random_seed=run_seed  # Or any other seed for reproducibility
         )
