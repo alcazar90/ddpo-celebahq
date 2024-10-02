@@ -1,5 +1,5 @@
 <h1 align="center">
-  &nbsp; Finetuned Diffusion Models <br>with Reinforcement Learning<br>
+  &nbsp; Finetuned Diffusion Models <br>using Reinforcement Learning<br>
   👾<br>
 </h1>
 <!-- <h2 align="center">
@@ -8,12 +8,27 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 
 <!-- ---- -->
 
+
+<center>
+<div style="display: flex; justify-content: space-around;">
+  <div style="background-color: white; padding: 10px; border-radius: 10px;">
+    <img src="./assets/reward-finetuning-diagram-with-DDPO.png" alt="Visual Comparison between DDPM and DDPO on different downstream tasks" style="max-width: 100%; height: auto;">
+  </div>
+</div>
+</center>
+
+
+## Downstream Tasks
+
+- Aesthetic Quality using LAION Aesthetic Predictor
+- JPEG Compressibility
+- JPEG Incompressibility
+- OVER50 using ViT Age Classifier
+ 
 <center>
 <div style="display: flex; justify-content: space-around;">
   <div style="background-color: white; padding: 10px; border-radius: 10px;">
     <img src="./assets/visual-comparison-results-200dpi.png" alt="Visual Comparison between DDPM and DDPO on different downstream tasks" style="max-width: 100%; height: auto;">
-  <!-- <img src="https://via.placeholder.com/150" alt="Image 2" width="150" height="150">
-  <img src="https://via.placeholder.com/150" alt="Image 3" width="150" height="150"> -->
   </div>
 </div>
 </center>
