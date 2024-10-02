@@ -53,8 +53,11 @@ A visual comparison between DDPM samples (i.e., pretrained) and DDPO samples gen
 - Goal: Increasing the Frequency of Generated Celebrity-Like Faces Over 50 Years Old
 - <a href="https://huggingface.co/nateraw/vit-age-classifier" target="blank">ViT Age Classifier (Nate Raw, 2021)</a>, trained on the FairFace dataset, to predict the age of the samples.
 
-
-
+<div style="display: flex; justify-content: center; align-items: center;">
+  <figure style="text-align: center;">
+    <img src="./assets/over50-reward-design.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
+  </figure>
+</div>
 
 
 
