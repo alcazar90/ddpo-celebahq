@@ -11,7 +11,7 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 
 <center>
 <div style="display: flex; justify-content: space-around;">
-  <img src="./assets/reward-finetuning-diagram-with-DDPO.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
+  <img src="./assets/reward-finetuning-diagram-with-ddpo.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
 </div>
 </center>
 
