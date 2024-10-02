@@ -89,6 +89,21 @@ def over50_old(
     return _fn
 ```
 
+<table style="width: 100%; text-align: center;">
+    <tr>
+        <td style="text-align: center;">
+            <img src="./assets/age-dist-ddpm-celebahqsample-based-on-vit-age-preds-on-faces.png" alt="Aesthetic Quality Transition" style="max-width: 100%; height: auto;">
+            <br>
+            <span style="display: block; text-align: center;">DDPM age distribution<br>based on faces</span>
+        </td>
+        <td style="text-align: center;">
+            <img src="./assets/age-dist-ddpo-celebahqsample-based-on-vit-age-preds-on-faces.png" alt="Incompressibility Transition" style="max-width: 100%; height: auto;">
+            <br>
+            <span style="display: block; text-align: center;">Post-training distribution<br>with OVER50 </span>
+        </td>
+    </tr>
+</table>
+
 
 
 ## Experiment Details 🧪
