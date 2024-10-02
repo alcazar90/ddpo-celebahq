@@ -9,11 +9,13 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 <!-- ---- -->
 
 
-<center>
-<div style="display: flex; justify-content: space-around;">
-  <img src="./assets/reward-finetuning-diagram-with-ddpo.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
+<div style="display: flex; justify-content: center; align-items: center;">
+  <figure style="text-align: center;">
+    <img src="./assets/reward-finetuning-diagram-with-ddpo.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
+    <figcaption>Figure 1:  A two-step process to align a pre-trained diffusion  model (DDPM) with downstream tasks using reward-based optimization, known as DDPO <a href src="https://arxiv.org/abs/2305.13301" target="_blank">(Black et al., 2023)</a>.
+     In the first step, the diffusion model generates samples (trajectories), which are evaluated by a reward model acting as an oracle to determine which samples to incentivize. In the second step, gradients are estimated via Monte Carlo methods based on the collected dataset to update the diffusion model parameters.</figcaption>
+  </figure>
 </div>
-</center>
 
 
 ## Downstream Tasks
