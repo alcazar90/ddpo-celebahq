@@ -14,9 +14,6 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
 </a>
 
 
-Implementation of [_Training Diffusion Models with Reinforcement Learning_](https://arxiv.org/abs/2305.13301) on the model [`google/ddpm-celebahq-256`](https://huggingface.co/google/ddpm-celebahq-256).
-
-
 ## Getting Started
 
 For setting the project.
@@ -34,3 +31,21 @@ python ./scripts/train.py --num_epochs 15 --lr 0.0000008 --clip_advantages 5 --n
 ```
 
 For clone this repo, install dependencies, and running the training script in a Google Colab instance with GPU, follow [this colab as example](https://colab.research.google.com/drive/1b5L-6KoKVxrEmCX9K2wX_ETesCJdzpTm?usp=sharing).
+
+
+
+## Experiment Details 🧪
+
+| Experiment         | Model (Hugging Face)                                                                                                                                  | W\&B                                                                                                                                                                                                                                                                                 |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [**google/ddpm-celebahq-256**](https://huggingface.co/google/ddpm-celebahq-256) |                                                                                                                                               |                                                                                                                                                                                                                                                                                       |
+| Aesthetic Quality   | [aesthetic-celebahq-256](https://huggingface.co/alkzar90/ddpo-aesthetic-celebahq-256)                                                                 | [run1](https://wandb.ai/alcazar90/ddpo-aesthetic-ddpm-celebahq256/runs/d5jb3r8a)/[run2](https://wandb.ai/alcazar90/ddpo-aesthetic-ddpm-celebahq256/runs/cfltp5ln)                                                                                                                      |
+| Compressibility     | [compressibility-celebahq-256](https://huggingface.co/alkzar90/ddpo-compressibility-celebahq-256)                                                     | [run1](https://wandb.ai/alcazar90/ddpo-compressibility-ddpm-celebahq256/runs/eu71d08t)/[run2](https://wandb.ai/alcazar90/ddpo-compressibility-ddpm-celebahq256/runs/r2mxiasx)                                                                                                           |
+| Incompressibility   | [incompressibility-celebahq-256](https://huggingface.co/alkzar90/ddpo-incompressibility-celebahq-256)                                                 | [run1](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-celebahq256/runs/3gz13ov7)/[run2](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-celebahq256/runs/b1srfre3)                                                                                                       |
+| OVER50              | [over50-celebahq-256](https://huggingface.co/alkzar90/ddpo-over50-celebahq-256)                                                                       | [run1](https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256/runs/3x6sr17l)/[run2](https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256/runs/xfwb9vok)/[run3](https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256/runs/4422n639)/[run4](https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256/runs/dbmjb1s6)/[run5](https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256/runs/qfjzj6rd)/[run6](https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256/runs/b7wu16pl) |
+| [**google/ddpm-church-256**](https://huggingface.co/google/ddpm-church-256) |                                                                                                                                               |                                                                                                                                                                                                                                                                                       |
+| Aesthetic Quality   | [aesthetic-church-256](https://huggingface.co/alkzar90/ddpo-aesthetic-church-256)                                                                     | [run1](https://wandb.ai/alcazar90/ddpo-aesthetic-ddpm-church256/runs/5f69185v)/[run2](https://wandb.ai/alcazar90/ddpo-aesthetic-ddpm-church256/runs/4uqt5dwa)                                                                                                                           |
+| Compressibility     | [compressibility-church-256](https://huggingface.co/alkzar90/ddpo-compressibility-church-256)                                                         | [run1](https://wandb.ai/alcazar90/ddpo-compressibility-ddpm-church256/runs/urd2hwd9)/[run2](https://wandb.ai/alcazar90/ddpo-compressibility-ddpm-church256/runs/7205y5cb)/[run3](https://wandb.ai/alcazar90/ddpo-compressibility-ddpm-church256/runs/82snqejo)                           |
+| Incompressibility   | [incompressibility-church-256](https://huggingface.co/alkzar90/ddpo-incompressibility-church-256)                                                     | [run1](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-church256/runs/jmbu5cgn)/[run2](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-church256/runs/320xik9f)/[run3](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-church256/runs/l0zqgs80)                       |
+
+**Note:** Multiple runs indicate that the experiment continued training from the previous run, using the last saved checkpoint.
