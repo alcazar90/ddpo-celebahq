@@ -24,24 +24,6 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
 </div>
 </center>
 
-## Getting Started
-
-For setting the project.
-
-```bash
-git clone git@github.com:alcazar90/ddpo-celebahq.git
-cd ddpo-celebahq
-pip install -e .
-```
-
-Running the training script:
-
-```bash
-python ./scripts/train.py --num_epochs 15 --lr 0.0000008 --clip_advantages 5 --num_inner_epochs 2
-```
-
-For clone this repo, install dependencies, and running the training script in a Google Colab instance with GPU, follow [this colab as example](https://colab.research.google.com/drive/1b5L-6KoKVxrEmCX9K2wX_ETesCJdzpTm?usp=sharing).
-
 
 
 ## Experiment Details 🧪
@@ -59,3 +41,22 @@ For clone this repo, install dependencies, and running the training script in a 
 | Incompressibility   | [incompressibility-church-256](https://huggingface.co/alkzar90/ddpo-incompressibility-church-256)                                                     | [run1](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-church256/runs/jmbu5cgn)/[run2](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-church256/runs/320xik9f)/[run3](https://wandb.ai/alcazar90/ddpo-incompressibility-ddpm-church256/runs/l0zqgs80)                       |
 
 **Note:** Multiple runs indicate that the experiment continued training from the previous run, using the last saved checkpoint.
+
+
+## Getting Started
+
+For setting the project.
+
+```bash
+git clone git@github.com:alcazar90/ddpo-celebahq.git
+cd ddpo-celebahq
+pip install -e .
+```
+
+Running the training script:
+
+```bash
+python ./scripts/train.py --num_epochs 15 --lr 0.0000008 --clip_advantages 5 --num_inner_epochs 2
+```
+
+For clone this repo, install dependencies, and running the training script in a Google Colab instance with GPU, follow [this colab as example](https://colab.research.google.com/drive/1b5L-6KoKVxrEmCX9K2wX_ETesCJdzpTm?usp=sharing).
