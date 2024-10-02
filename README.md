@@ -19,11 +19,25 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 
 ## Downstream Tasks
 
-<p>
-    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 1 Description" style="max-width: 30%; height: auto;">
-    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 2 Description" style="max-width: 30%; height: auto;">
-    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 3 Description" style="max-width: 30%; height: auto;">
-</p>
+<table style="width: 100%; text-align: center;">
+    <tr>
+        <td>
+            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 1 Description" style="max-width: 100%; height: auto;">
+            <br>
+            <span>Aesthetic Quality</span>
+        </td>
+        <td>
+            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 2 Description" style="max-width: 100%; height: auto;">
+            <br>
+            <span>JPEG Compressibility</span>
+        </td>
+        <td>
+            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 3 Description" style="max-width: 100%; height: auto;">
+            <br>
+            <span>JPEG Incompressibility</span>
+        </td>
+    </tr>
+</table>
 
 
 - Aesthetic Quality using LAION Aesthetic Predictor
