@@ -14,6 +14,12 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
 </a>
 
 
+<div style="display: flex; justify-content: space-around;">
+  <img src="./assets/visual-comparison-results-200dpi.png" alt="Image 1" width="550" height="350">
+  <!-- <img src="https://via.placeholder.com/150" alt="Image 2" width="150" height="150">
+  <img src="https://via.placeholder.com/150" alt="Image 3" width="150" height="150"> -->
+</div>
+
 ## Getting Started
 
 For setting the project.
