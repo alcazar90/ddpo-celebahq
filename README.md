@@ -1,18 +1,12 @@
 <h1 align="center">
-  &nbsp;Diffusion + RL 👾<br>
+  &nbsp; Finetuned Diffusion Models <br>with Reinforcement Learning<br>
+  👾<br>
 </h1>
-<h2 align="center">
-Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
-</h2>
+<!-- <h2 align="center">
+Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
+<!-- </h2> -->
 
-----
-
-<a href="https://wandb.ai/alcazar90/ddpo-over50-ddpm-celebahq256?nw=nwuseralcazar90" target="_blank">[W&B🪄]</a>
-
-<a href="https://colab.research.google.com/drive/1zSaDb8tTG4jgMlWP2-V5ctX9qwzHzP9j?usp=sharing">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a>
-
+<!-- ---- -->
 
 <center>
 <div style="display: flex; justify-content: space-around;">
@@ -45,6 +39,12 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
 
 ## Getting Started
 
+<p>
+<a href="https://colab.research.google.com/drive/1zSaDb8tTG4jgMlWP2-V5ctX9qwzHzP9j?usp=sharing">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+</p>
+
 For setting the project.
 
 ```bash
@@ -53,10 +53,26 @@ cd ddpo-celebahq
 pip install -e .
 ```
 
-Running the training script:
+Example for Running the training script:
 
 ```bash
-python ./scripts/train.py --num_epochs 15 --lr 0.0000008 --clip_advantages 5 --num_inner_epochs 2
+python ./ddpo-celebahq/scripts/train.py \
+--wandb_logging \
+--task "aesthetic score" \
+--initial_lr 0.00000009 \
+--peak_lr 0.00000374 \
+--warmup_pct 0.5 \
+--num_samples_per_epoch 100 \
+--batch_size 10 \
+--num_epochs 25 \
+--clip_advantages 10 \
+--num_inner_epochs 1 \
+--eval_every_each_epoch 1 \
+--num_eval_samples 64 \
+--run_seed 92013491249214123 \
+--eval_rnd_seed 650  \
+--save_model \
+--ddpm_ckpt google/ddpm-church-256
 ```
 
 For clone this repo, install dependencies, and running the training script in a Google Colab instance with GPU, follow [this colab as example](https://colab.research.google.com/drive/1b5L-6KoKVxrEmCX9K2wX_ETesCJdzpTm?usp=sharing).
