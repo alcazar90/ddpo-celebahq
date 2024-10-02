@@ -24,17 +24,17 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
         <td>
             <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 1 Description" style="max-width: 100%; height: auto;">
             <br>
-            <span>Aesthetic Quality</span>
+            <span style="text-align: center;">Aesthetic Quality</span>
         </td>
         <td>
             <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 2 Description" style="max-width: 100%; height: auto;">
             <br>
-            <span>JPEG Compressibility</span>
+            <span style="text-align: center;">JPEG Compressibility</span>
         </td>
         <td>
             <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 3 Description" style="max-width: 100%; height: auto;">
             <br>
-            <span>JPEG Incompressibility</span>
+            <span style="text-align: center;">JPEG Incompressibility</span>
         </td>
     </tr>
 </table>
