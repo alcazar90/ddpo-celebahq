@@ -19,10 +19,13 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 
 ## Downstream Tasks
 
+This project support the three main downstream tasks use to align the image generation in the <a href="https://arxiv.org/abs/2305.13301" target="_blank"><i>Training Diffusion Models with Reinforcement Learning (Black et al. 2023)</i></a> work:
+
+
 <table style="width: 100%; text-align: center;">
     <tr>
         <td style="text-align: center;">
-            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="Aesthetic Quality Transition" style="max-width: 100%; height: auto;">
+            <img src="./assets/aesthetic-from-ddpm-to-ddpo-sample-60.gif" alt="Aesthetic Quality Transition" style="max-width: 100%; height: auto;">
             <br>
             <span style="display: block; text-align: center;">Aesthetic Quality</span>
         </td>
@@ -39,12 +42,8 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
     </tr>
 </table>
 
+A visual comparison between DDPM samples (i.e., pretrained) and DDPO samples generated from the same initial noise. The DDPO samples utilize checkpoints finetuned with their corresponding reward functions.
 
-- Aesthetic Quality using LAION Aesthetic Predictor
-- JPEG Compressibility
-- JPEG Incompressibility
-- OVER50 using ViT Age Classifier
- 
 <div style="display: flex; justify-content: space-around; center;">
   <figure style="text-align: center;">
     <img src="./assets/visual-comparison-results-200dpi.png" alt="Visual Comparison between DDPM and DDPO on different downstream tasks" style="max-width: 100%; height: auto;">
@@ -52,7 +51,9 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
   </figure>
 </div>
 
+### OVER50
 
+OVER50 using ViT Age Classifier
 
 ## Experiment Details 🧪
 
