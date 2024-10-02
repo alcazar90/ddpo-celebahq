@@ -20,17 +20,9 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 ## Downstream Tasks
 
 <p>
-<div style="display: flex; justify-content: space-around; align-items: center;">
-  <div style="text-align: center; width: 30%;">
-    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 1 Description" style="max-width: 100%; height: auto;">
-  </div>
-  <div style="text-align: center; width: 30%;">
-    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 2 Description" style="max-width: 100%; height: auto;">
-  </div>
-  <div style="text-align: center; width: 30%;">
-    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 3 Description" style="max-width: 100%; height: auto;">
-  </div>
-</div>
+    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 1 Description" style="max-width: 30%; height: auto;">
+    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 2 Description" style="max-width: 30%; height: auto;">
+    <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 3 Description" style="max-width: 30%; height: auto;">
 </p>
 
 
