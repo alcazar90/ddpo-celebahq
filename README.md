@@ -12,8 +12,7 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 <div style="display: flex; justify-content: center; align-items: center;">
   <figure style="text-align: center;">
     <img src="./assets/reward-finetuning-diagram-with-ddpo.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
-    <figcaption>Figure 1:  A two-step process to align a pre-trained diffusion  model (DDPM) with downstream tasks using reward-based optimization, known as DDPO <a href src="https://arxiv.org/abs/2305.13301" target="_blank">(Black et al., 2023)</a>.
-     In the first step, the diffusion model generates samples (trajectories), which are evaluated by a reward model acting as an oracle to determine which samples to incentivize. In the second step, gradients are estimated via Monte Carlo methods based on the collected dataset to update the diffusion model parameters.</figcaption>
+    <figcaption style="font-size: 0.9em;"><b>Reward Finetuning is a two-step process to align a pre-trained diffusion  model (DDPM) with downstream tasks using reward-based optimization, known as DDPO <a href src="https://arxiv.org/abs/2305.13301" target="_blank">(Black et al., 2023)</a></b>. In the first step, the diffusion model generates samples (trajectories), which are evaluated by a reward model acting as an oracle to determine which samples to incentivize. In the second step, gradients are estimated via Monte Carlo methods based on the collected dataset to update the diffusion model parameters.</figcaption>
   </figure>
 </div>
 
@@ -25,13 +24,12 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 - JPEG Incompressibility
 - OVER50 using ViT Age Classifier
  
-<center>
-<div style="display: flex; justify-content: space-around;">
-  <div style="background-color: white; padding: 10px; border-radius: 10px;">
+<div style="display: flex; justify-content: space-around; center;">
+  <figure style="text-align: center;">
     <img src="./assets/visual-comparison-results-200dpi.png" alt="Visual Comparison between DDPM and DDPO on different downstream tasks" style="max-width: 100%; height: auto;">
-  </div>
+    <figcaption style="font-size: 0.9em;"><b>Visual comparison of DDPM and DDPO samples optimized for various downstream tasks.</b></figcaption>
+  </figure>
 </div>
-</center>
 
 
 
