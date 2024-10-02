@@ -19,6 +19,9 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 
 ## Downstream Tasks
 
+<img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="Description of the GIF" style="max-width: 100%; height: auto;">
+
+
 - Aesthetic Quality using LAION Aesthetic Predictor
 - JPEG Compressibility
 - JPEG Incompressibility
