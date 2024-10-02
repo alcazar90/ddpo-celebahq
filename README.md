@@ -71,6 +71,20 @@ OVER50 using ViT Age Classifier
 
 **Note:** Multiple runs indicate that the experiment continued training from the previous run, using the last saved checkpoint.
 
+## Overoptimization and mode collapse
+
+
+<div style="display: flex; justify-content: center; align-items: center;">
+  <figure style="text-align: center;">
+    <img src="./assets/emb-space-ddpo-vs-ddpm2.png" alt="Reward finetuning diagram" style="max-width: 100%; height: auto;">
+    <figcaption style="font-size: 0.9em;"><b>Comparison of Image Synthesis Using CelebA-HQ-Based Models.</b> 2D projection of CLIP embeddings for two sets of 1,000 samples: i) DDPM samples (black borders) and ii) DDPO samples fine-tuned with the LAION aesthetic reward (white borders). The DDPO samples were optimized to achieve a higher average aesthetic score (5.58 vs. 5.11), indicating better aesthetic quality. Notably, the DDPO samples cluster more tightly (red ellipse) around the highest-scoring DDPM sample, indicating a <i><b>mode collapse effect</b></i>. Both sets of samples were generated using the same seed.</figcaption>
+  </figure>
+</div>
+
+
+
+
+
 
 ## Getting Started
 
