@@ -21,20 +21,20 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp; -->
 
 <table style="width: 100%; text-align: center;">
     <tr>
-        <td>
-            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 1 Description" style="max-width: 100%; height: auto;">
+        <td style="text-align: center;">
+            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="Aesthetic Quality Transition" style="max-width: 100%; height: auto;">
             <br>
-            <span style="text-align: center;">Aesthetic Quality</span>
+            <span style="display: block; text-align: center;">Aesthetic Quality</span>
         </td>
-        <td>
-            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 2 Description" style="max-width: 100%; height: auto;">
+        <td style="text-align: center;">
+            <img src="./assets/compressibility-from-ddpm-to-ddpo-sample-6.gif" alt="Compressibiliity Transition" style="max-width: 100%; height: auto;">
             <br>
-            <span style="text-align: center;">JPEG Compressibility</span>
+            <span style="display: block; text-align: center;">JPEG Compressibility</span>
         </td>
-        <td>
-            <img src="./assets/aesthetic-quality-from-ddpm-to-ddpo.gif" alt="GIF 3 Description" style="max-width: 100%; height: auto;">
+        <td style="text-align: center;">
+            <img src="./assets/incompressibility-from-ddpm-to-ddpo-sample-8.gif" alt="Incompressibility Transition" style="max-width: 100%; height: auto;">
             <br>
-            <span style="text-align: center;">JPEG Incompressibility</span>
+            <span style="display: block; text-align: center;">JPEG Incompressibility</span>
         </td>
     </tr>
 </table>
