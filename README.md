@@ -14,11 +14,15 @@ Experiments using DDPO on <code>google/ddpm-celebahq-256</code>&nbsp;
 </a>
 
 
+<center>
 <div style="display: flex; justify-content: space-around;">
-  <img src="./assets/visual-comparison-results-200dpi.png" alt="Image 1" width="550" height="350">
+  <div style="background-color: white; padding: 10px; border-radius: 10px;">
+    <img src="./assets/visual-comparison-results-200dpi.png" alt="Visual Comparison between DDPM and DDPO on different downstream tasks" style="max-width: 100%; height: auto;">
   <!-- <img src="https://via.placeholder.com/150" alt="Image 2" width="150" height="150">
   <img src="https://via.placeholder.com/150" alt="Image 3" width="150" height="150"> -->
+  </div>
 </div>
+</center>
 
 ## Getting Started
 
